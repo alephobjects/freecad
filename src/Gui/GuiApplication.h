@@ -21,43 +21,61 @@
  ***************************************************************************/
 
 
-#ifndef REEN_BSPLINEFITTING_H
-#define REEN_BSPLINEFITTING_H
+#ifndef GUI_APPLICATION_H
+#define GUI_APPLICATION_H
 
-#if defined(HAVE_PCL_OPENNURBS)
-#include <Handle_Geom_BSplineSurface.hxx>
-#include <Base/Vector3D.h>
-#include <vector>
+#include "GuiApplicationNativeEventAware.h"
+#include <QList>
 
-namespace Reen {
+class QSessionManager;
 
-class BSplineFitting
+namespace Gui
 {
-public:
-    BSplineFitting(const std::vector<Base::Vector3f>&);
-    Handle(Geom_BSplineSurface) perform();
+/** Override QCoreApplication::notify() to fetch exceptions in Qt widgets
+ * properly that are not handled in the event handler or slot.
+ */
+class GUIApplication : public GUIApplicationNativeEventAware
+{
+    Q_OBJECT
 
-    void setIterations(unsigned);
-    void setOrder(unsigned);
-    void setRefinement(unsigned);
-    void setInteriorSmoothness(double);
-    void setInteriorWeight(double);
-    void setBoundarySmoothness(double);
-    void setBoundaryWeight(double);
+public:
+    explicit GUIApplication(int & argc, char ** argv, int exitcode);
+    virtual ~GUIApplication();
+
+    /**
+     * Make forwarding events exception-safe and get more detailed information
+     * where an unhandled exception comes from.
+     */
+    bool notify (QObject * receiver, QEvent * event);
+    void commitData(QSessionManager &manager);
 
 private:
-    std::vector<Base::Vector3f> myPoints;
-    unsigned myIterations;
-    unsigned myOrder;
-    unsigned myRefinement;
-    double myInteriorSmoothness;
-    double myInteriorWeight;
-    double myBoundarySmoothness;
-    double myBoundaryWeight;
+    int systemExit;
+};
+
+class GUISingleApplication : public GUIApplication
+{
+    Q_OBJECT
+
+public:
+    explicit GUISingleApplication(int & argc, char ** argv, int exitcode);
+    virtual ~GUISingleApplication();
+
+    bool isRunning() const;
+    bool sendMessage(const QByteArray &message, int timeout = 5000);
+
+private Q_SLOTS:
+    void receiveConnection();
+    void processMessages();
+
+Q_SIGNALS:
+    void messageReceived(const QList<QByteArray> &);
+
+private:
+    class Private;
+    QScopedPointer<Private> d_ptr;
 };
 
 }
 
-#endif // HAVE_PCL_OPENNURBS
-
-#endif // REEN_BSPLINEFITTING_H
+#endif // GUI_APPLICATION_H
