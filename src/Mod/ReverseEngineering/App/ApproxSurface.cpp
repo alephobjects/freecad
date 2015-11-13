@@ -664,12 +664,14 @@ bool ParameterCorrection::GetUVParameters(double fSizeFactor)
     return true;
 }
 
-void ParameterCorrection::SetUVW(const Base::Vector3d& clU, const Base::Vector3d& clV, const Base::Vector3d& clW, bool bUseDir)
+void ParameterCorrection::SetUV(const Base::Vector3d& clU, const Base::Vector3d& clV, bool bUseDir)
 {
-    _clU = clU;
-    _clV = clV;
-    _clW = clW;
     _bGetUVDir = bUseDir;
+    if (_bGetUVDir) {
+        _clU = clU;
+        _clW = clU % clV;
+        _clV = _clW % _clU;
+    }
 }
 
 void ParameterCorrection::GetUVW(Base::Vector3d& clU, Base::Vector3d& clV, Base::Vector3d& clW) const
@@ -693,6 +695,22 @@ Base::Vector3d ParameterCorrection::GetGravityPoint() const
     return Base::Vector3d(x/ulSize, y/ulSize, z/ulSize);
 }
 
+void ParameterCorrection::ProjectControlPointsOnPlane()
+{
+    Base::Vector3d base = GetGravityPoint();
+    for (unsigned j=0;j<_usUCtrlpoints;j++) {
+        for (unsigned k=0;k<_usVCtrlpoints;k++) {
+            gp_Pnt pole = _vCtrlPntsOfSurf(j,k);
+            Base::Vector3d pnt(pole.X(), pole.Y(), pole.Z());
+            pnt.ProjToPlane(base, _clW);
+            pole.SetX(pnt.x);
+            pole.SetY(pnt.y);
+            pole.SetZ(pnt.z);
+            _vCtrlPntsOfSurf(j,k) = pole;
+        }
+    }
+}
+
 Handle(Geom_BSplineSurface) ParameterCorrection::CreateSurface(const TColgp_Array1OfPnt& points, 
                                                                int iIter,
                                                                bool  bParaCor,
@@ -704,6 +722,7 @@ Handle(Geom_BSplineSurface) ParameterCorrection::CreateSurface(const TColgp_Arra
         delete _pvcUVParam;
         _pvcUVParam = NULL;
     }
+
     _pvcPoints = new TColgp_Array1OfPnt(points.Lower(), points.Upper());
     *_pvcPoints = points;
     _pvcUVParam = new TColgp_Array1OfPnt2d(points.Lower(), points.Upper());
@@ -712,6 +731,16 @@ Handle(Geom_BSplineSurface) ParameterCorrection::CreateSurface(const TColgp_Arra
         return NULL; //LGS unterbestimmt
     if (!DoInitialParameterCorrection(fSizeFactor))
         return NULL;
+
+    // Erzeuge die Approximations-Ebene als B-Spline-Flaeche
+    if (iIter < 0) {
+        bParaCor = false;
+        ProjectControlPointsOnPlane();
+    }
+    // Keine weiteren Parameterkorrekturen
+    else if (iIter == 0) {
+        bParaCor = false;
+    }
 
     if (bParaCor)
         DoParameterCorrection(iIter);

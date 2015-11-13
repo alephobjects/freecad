@@ -275,6 +275,11 @@ protected:
     virtual void CalcEigenvectors();
 
     /**
+     * Projiziert die Kontrollpunkte auf die Fit-Ebene
+     */
+    void ProjectControlPointsOnPlane();
+
+    /**
      * Berechnet eine initiale Flaeche zu Beginn des Algorithmus. Dazu wird die Ausgleichsebene zu der 
      * Punktwolke berechnet.
      * Die Punkte werden bzgl. der Basis bestehend aus den Eigenvektoren der Kovarianzmatrix berechnet und 
@@ -315,7 +320,7 @@ public:
      * Setzen der u/v-Richtungen
      * Dritter Parameter gibt an, ob die Richtungen tatsaechlich verwendet werden sollen.
      */
-    virtual void SetUVW(const Base::Vector3d& clU, const Base::Vector3d& clV, const Base::Vector3d& clW, bool bUseDir=true);
+    virtual void SetUV(const Base::Vector3d& clU, const Base::Vector3d& clV, bool bUseDir=true);
 
     /**
      * Gibt die u/v/w-Richtungen zurueck
@@ -342,7 +347,7 @@ protected:
     unsigned                _usVCtrlpoints;    //! Anzahl der Kontrollpunkte in v-Richtung
     Base::Vector3d          _clU;              //! u-Richtung
     Base::Vector3d          _clV;              //! v-Richtung
-    Base::Vector3d          _clW;              //! w-Richtung (senkrecht zu u-und w-Richtung)
+    Base::Vector3d          _clW;              //! w-Richtung (senkrecht zu u-und v-Richtung)
     TColgp_Array1OfPnt*     _pvcPoints;        //! Punktliste der Rohdaten
     TColgp_Array1OfPnt2d*   _pvcUVParam;       //! Parameterwerte zu den Punkten aus der Liste
     TColgp_Array2OfPnt      _vCtrlPntsOfSurf;  //! Array von Kontrollpunkten

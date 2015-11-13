@@ -1,24 +1,24 @@
-#***************************************************************************
-#*                                                                         *
-#*   Copyright (c) 2015 - Przemo Firszt <przemo@firszt.eu>                 *
-#*                                                                         *
-#*   This program is free software; you can redistribute it and/or modify  *
-#*   it under the terms of the GNU Lesser General Public License (LGPL)    *
-#*   as published by the Free Software Foundation; either version 2 of     *
-#*   the License, or (at your option) any later version.                   *
-#*   for detail see the LICENCE text file.                                 *
-#*                                                                         *
-#*   This program is distributed in the hope that it will be useful,       *
-#*   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
-#*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
-#*   GNU Library General Public License for more details.                  *
-#*                                                                         *
-#*   You should have received a copy of the GNU Library General Public     *
-#*   License along with this program; if not, write to the Free Software   *
-#*   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  *
-#*   USA                                                                   *
-#*                                                                         *
-#***************************************************************************
+# ***************************************************************************
+# *                                                                         *
+# *   Copyright (c) 2015 - Przemo Firszt <przemo@firszt.eu>                 *
+# *                                                                         *
+# *   This program is free software; you can redistribute it and/or modify  *
+# *   it under the terms of the GNU Lesser General Public License (LGPL)    *
+# *   as published by the Free Software Foundation; either version 2 of     *
+# *   the License, or (at your option) any later version.                   *
+# *   for detail see the LICENCE text file.                                 *
+# *                                                                         *
+# *   This program is distributed in the hope that it will be useful,       *
+# *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+# *   GNU Library General Public License for more details.                  *
+# *                                                                         *
+# *   You should have received a copy of the GNU Library General Public     *
+# *   License along with this program; if not, write to the Free Software   *
+# *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  *
+# *   USA                                                                   *
+# *                                                                         *
+# ***************************************************************************
 
 
 import FreeCAD
@@ -142,7 +142,7 @@ class FemTools(QtCore.QRunnable, QtCore.QObject):
         self.mesh.ViewObject.applyDisplacement(displacement_factor)
 
     def update_objects(self):
-        # [{'Object':material}, {}, ...]
+        # [{'Object':materials}, {}, ...]
         # [{'Object':fixed_constraints, 'NodeSupports':bool}, {}, ...]
         # [{'Object':force_constraints, 'NodeLoad':value}, {}, ...
         # [{'Object':pressure_constraints, 'xxxxxxxx':value}, {}, ...]
@@ -152,7 +152,7 @@ class FemTools(QtCore.QRunnable, QtCore.QObject):
         ## @var mesh
         #  mesh of the analysis. Used to generate .inp file and to show results
         self.mesh = None
-        self.material = []
+        self.materials = []
         ## @var fixed_constraints
         #  set of fixed constraints from the analysis. Updated with update_objects
         #  Individual constraints are "Fem::ConstraintFixed" type
@@ -174,7 +174,7 @@ class FemTools(QtCore.QRunnable, QtCore.QObject):
             elif m.isDerivedFrom("App::MaterialObjectPython"):
                 material_dict = {}
                 material_dict['Object'] = m
-                self.material.append(material_dict)
+                self.materials.append(material_dict)
             elif m.isDerivedFrom("Fem::ConstraintFixed"):
                 fixed_constraint_dict = {}
                 fixed_constraint_dict['Object'] = m
@@ -209,8 +209,14 @@ class FemTools(QtCore.QRunnable, QtCore.QObject):
                 message += "Working directory \'{}\' doesn't exist.".format(self.working_dir)
         if not self.mesh:
             message += "No mesh object in the Analysis\n"
-        if not self.material:
+        if not self.materials:
             message += "No material object in the Analysis\n"
+        has_no_references = False
+        for m in self.materials:
+            if len(m['Object'].References) == 0:
+                if has_no_references is True:
+                    message += "More than one Material has empty References list (Only one empty References list is allowed!).\n"
+                has_no_references = True
         if not self.fixed_constraints:
             message += "No fixed-constraint nodes defined in the Analysis\n"
         if self.analysis_type == "static":
@@ -237,7 +243,7 @@ class FemTools(QtCore.QRunnable, QtCore.QObject):
         import sys
         self.inp_file_name = ""
         try:
-            inp_writer = iw.inp_writer(self.analysis, self.mesh, self.material,
+            inp_writer = iw.inp_writer(self.analysis, self.mesh, self.materials,
                                        self.fixed_constraints,
                                        self.force_constraints, self.pressure_constraints,
                                        self.beam_sections, self.shell_thicknesses,
@@ -377,11 +383,11 @@ class FemTools(QtCore.QRunnable, QtCore.QObject):
     #  @ccx_binary path to ccx binary, default is guessed: "bin/ccx" windows, "ccx" for other systems
     #  @ccx_binary_sig expected output form ccx when run empty. Default value is "CalculiX.exe -i jobname"
     def setup_ccx(self, ccx_binary=None, ccx_binary_sig="CalculiX"):
+        from platform import system
         if not ccx_binary:
             self.fem_prefs = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/Fem")
             ccx_binary = self.fem_prefs.GetString("ccxBinaryPath", "")
         if not ccx_binary:
-            from platform import system
             if system() == "Linux":
                 ccx_binary = "ccx"
             elif system() == "Windows":
@@ -389,14 +395,23 @@ class FemTools(QtCore.QRunnable, QtCore.QObject):
             else:
                 ccx_binary = "ccx"
         self.ccx_binary = ccx_binary
+
         import subprocess
+        startup_info = None
+        if system() == "Windows":
+            # Windows workaround to avoid blinking terminal window
+            startup_info = subprocess.STARTUPINFO()
+            startup_info.dwFlags = subprocess.STARTF_USESHOWWINDOW
+        ccx_stdout = None
+        ccx_stderr = None
         try:
             p = subprocess.Popen([self.ccx_binary], stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE, shell=False)
+                                 stderr=subprocess.PIPE, shell=False,
+                                 startupinfo=startup_info)
             ccx_stdout, ccx_stderr = p.communicate()
             if ccx_binary_sig in ccx_stdout:
                 self.ccx_binary_present = True
-        except OSError, e:
+        except OSError as e:
             FreeCAD.Console.PrintError(e.message)
             if e.errno == 2:
                 raise Exception("FEM: CalculiX binary ccx \'{}\' not found. Please set it in FEM preferences.".format(ccx_binary))
