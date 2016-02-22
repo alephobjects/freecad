@@ -140,6 +140,10 @@ public:
 
     void setAlias(CellAddress address, const std::string & alias);
 
+    std::string getAddressFromAlias(const std::string & alias) const;
+
+    bool isValidAlias(const std::string &candidate);
+
     void setSpans(CellAddress address, int rows, int columns);
 
     std::set<std::string> dependsOn(CellAddress address) const;
@@ -162,8 +166,6 @@ public:
 
     std::map<int, int> getRowHeights() const;
 
-    void setPosition(CellAddress address);
-
     // Signals
 
     boost::signal<void (Spreadsheet::CellAddress)> cellUpdated;
@@ -173,9 +175,6 @@ public:
     boost::signal<void (int, int)> columnWidthChanged;
 
     boost::signal<void (int, int)> rowHeightChanged;
-
-    boost::signal<void (CellAddress)> positionChanged;
-
 
     /** @name Access properties */
     //@{
@@ -210,6 +209,16 @@ public:
         return props.getPropertyType(prop);
     }
 
+    /// get the group of a property
+    const char* getPropertyGroup(const App::Property* prop) const {
+        return props.getPropertyGroup(prop);
+    }
+
+    /// get the documentation of a property
+    const char* getPropertyDocumentation(const App::Property* prop) const {
+        return props.getPropertyDocumentation(prop);
+    }
+
     /// get the name of a property
     virtual const char* getName(const App::Property* prop) const {
         return props.getPropertyName(prop);
@@ -217,6 +226,8 @@ public:
     //@}
 
     void observeDocument(App::Document *document);
+
+    virtual void renameObjectIdentifiers(const std::map<App::ObjectIdentifier, App::ObjectIdentifier> & paths);
 
 protected:
 
@@ -274,9 +285,6 @@ protected:
 
     /* Row heights */
     PropertyRowHeights rowHeights;
-
-    App::PropertyInteger currRow;
-    App::PropertyInteger currColumn;
 
     /* Dependencies to other documents */
     App::PropertyLinkList docDeps;

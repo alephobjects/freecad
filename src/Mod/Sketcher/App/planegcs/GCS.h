@@ -51,6 +51,12 @@ namespace GCS
         DogLeg = 2
     };
     
+    enum DogLegGaussStep {
+        FullPivLU = 0,
+        LeastNormFullPivLU = 1,
+        LeastNormLdlt = 2
+    };
+    
     enum QRAlgorithm {
         EigenDenseQR = 0,
         EigenSparseQR = 1
@@ -96,6 +102,10 @@ namespace GCS
         int solve_BFGS(SubSystem *subsys, bool isFine=true, bool isRedundantsolving=false);
         int solve_LM(SubSystem *subsys, bool isRedundantsolving=false);
         int solve_DL(SubSystem *subsys, bool isRedundantsolving=false);
+
+        #ifdef _GCS_EXTRACT_SOLVER_SUBSYSTEM_
+        void extractSubsystem(SubSystem *subsys, bool isRedundantsolving);
+        #endif
     public:
         int maxIter;
         int maxIterRedundant;
@@ -104,6 +114,7 @@ namespace GCS
         double convergence;
         double convergenceRedundant;
         QRAlgorithm qrAlgorithm;
+        DogLegGaussStep dogLegGaussStep;
         double qrpivotThreshold;
         DebugMode debugMode;
         double LM_eps;
