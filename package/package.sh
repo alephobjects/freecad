@@ -43,10 +43,11 @@ if [ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]; then
 	BUILD_DIR="$SCRIPT_DIR/build"
 	TARGET_DIR="$SCRIPT_DIR/target"
 	BUILD_ARCH="Unknown"
-	if [ "$BUILD_TARGET" = "debian_i386" ]
+	if [ "$BUILD_TARGET" = "debian_i386" ]; then
 		BUILD_ARCH="i386"
 	else
 		BUILD_ARCH="amd64"
+	fi
 
 	echo "Building FreeCAD in $BUILD_DIR"
 #	rm -Rf $BUILD_DIR
