@@ -39,7 +39,7 @@ echo $FULL_VERSION >> BUILD_VERSION
 #############################
 # Debian 32bit .deb
 #############################
-if [ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]; then
+if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; then
 	BUILD_DIR="$SCRIPT_DIR/build"
 	TARGET_DIR="$SCRIPT_DIR/target"
 	BUILD_ARCH="Unknown"
@@ -70,7 +70,7 @@ if [ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]; then
 	cd $SCRIPT_DIR
 	# Debian package directory should reside inside the target directory
 	mkdir -p ${TARGET_DIR}/DEBIAN
-	cat debian_control | sed "s/\[BUILD_VERSION\]/${FULL_VERSION}/" | sed 's/\[ARCH\]/${BUILD_ARCH}/' > ${TARGET_DIR}/DEBIAN/control
+	cat debian_control | sed "s/\[BUILD_VERSION\]/${FULL_VERSION}/" | sed "s/\[ARCH\]/${BUILD_ARCH}/" > ${TARGET_DIR}/DEBIAN/control
 
 #	chmod 755 scripts/linux/${TARGET_DIR}/usr -R
 # 	
