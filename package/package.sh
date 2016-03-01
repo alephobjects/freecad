@@ -27,7 +27,14 @@ cd "$SCRIPT_DIR"
 
 TAR=tar
 
-FULL_VERSION="0.16-git"
+FREECAD_MAJOR_VERSION=`grep "set(PACKAGE_VERSION_MAJOR" ../CMakeLists.txt | cut -d \" -f 2`
+FREECAD_MINOR_VERSION=`grep "set(PACKAGE_VERSION_MINOR" ../CMakeLists.txt | cut -d \" -f 2`
+FREECAD_PATCH_VERSION=`grep "set(PACKAGE_VERSION_PATCH" ../CMakeLists.txt | cut -d \" -f 2`
+
+FULL_VERSION=${FREECAD_MAJOR_VERSION}.${FREECAD_MINOR_VERSION}.${FREECAD_PATCH_VERSION}
+
+echo "Trying to build FreeCAD $FULL_VERSION "
+echo $FULL_VERSION >> BUILD_VERSION
 
 #############################
 # Debian 32bit .deb
