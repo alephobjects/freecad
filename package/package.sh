@@ -39,16 +39,19 @@ echo $FULL_VERSION >> BUILD_VERSION
 #############################
 # Debian 32bit .deb
 #############################
-if [ "$BUILD_TARGET" = "debian_i386" ]; then
-#	export CXX="g++ -m32"
+if [ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]; then
 	BUILD_DIR="$SCRIPT_DIR/build"
 	TARGET_DIR="$SCRIPT_DIR/target"
+	BUILD_ARCH="Unknown"
+	if [ "$BUILD_TARGET" = "debian_i386" ]
+		BUILD_ARCH="i386"
+	else
+		BUILD_ARCH="amd64"
 
 	echo "Building FreeCAD in $BUILD_DIR"
 #	rm -Rf $BUILD_DIR
 	mkdir -p $BUILD_DIR
 	cd $BUILD_DIR
-
 	cmake 	-DCMAKE_INSTALL_PREFIX=/usr \
 		-DCMAKE_INSTALL_DATADIR=/usr/shared/freecad/data \
 		-DCMAKE_INSTALL_DOCDIR=/usr/doc \
@@ -66,19 +69,16 @@ if [ "$BUILD_TARGET" = "debian_i386" ]; then
 	cd $SCRIPT_DIR
 	# Debian package directory should reside inside the target directory
 	mkdir -p ${TARGET_DIR}/DEBIAN
-	cat debian_control | sed "s/\[BUILD_VERSION\]/${FULL_VERSION}/" | sed 's/\[ARCH\]/i386/' > ${TARGET_DIR}/DEBIAN/control
+	cat debian_control | sed "s/\[BUILD_VERSION\]/${FULL_VERSION}/" | sed 's/\[ARCH\]/${BUILD_ARCH}/' > ${TARGET_DIR}/DEBIAN/control
 
-	# 
-
-#		chmod 755 scripts/linux/${TARGET_DIR}/usr -R
+#	chmod 755 scripts/linux/${TARGET_DIR}/usr -R
 # 	
 	fakeroot sh -ec "
 		chown root:root ${TARGET_DIR} -R
 		chmod 755 ${TARGET_DIR}/DEBIAN -R
-		dpkg-deb -Zgzip --build ${TARGET_DIR} ${SCRIPT_DIR}/freecad_${FULL_VERSION}_i386.deb
+		dpkg-deb -Zgzip --build ${TARGET_DIR} ${SCRIPT_DIR}/freecad_${FULL_VERSION}_${BUILD_ARCH}.deb
 		chown `id -un`:`id -gn` ${TARGET_DIR} -R
 	"
-	 
 
 	exit
 fi
