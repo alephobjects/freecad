@@ -42,7 +42,11 @@ if [ "$BUILD_TARGET" = "debian_i386" ]; then
 	mkdir -p $BUILD_DIR
 	cd $BUILD_DIR
 
-	cmake -DCMAKE_INSTALL_PREFIX=/usr \
+	cmake 	-DCMAKE_INSTALL_PREFIX=/usr \
+		-DCMAKE_INSTALL_DATADIR=/usr/shared/freecad/data \
+		-DCMAKE_INSTALL_DOCDIR=/usr/doc \
+		-DCMAKE_INSTALL_INCLUDEDIR=/usr/include/freecad \
+		-DCMAKE_INSTALL_LIBDIR=/usr/lib/freecad \
 		 ../..
 	if [ $? != 0 ]; then echo "Failed to configure FreeCAD"; exit 1; fi
 	$MAKE -j3

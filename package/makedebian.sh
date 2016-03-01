@@ -53,7 +53,7 @@ LSB_RELS=`lsb_release -r | cut -f2`
 LSB_DESC=`lsb_release -d | cut -f2`
 LSB_CODE=`lsb_release -c | cut -f2`
 patch -p1 < $SRC_DIR/package/debian/diff/freecad_$LSB_CODE.diff
-DEBEMAIL="wmayer@users.sourceforge.net"
+DEBEMAIL="it@alephobjects.com"
 export DEBEMAIL
 dch -v $MAJ.$MIN.$REV-1"$LSB_CODE"1 "New release for $LSB_DESC ($LSB_CODE)"
 debuild
