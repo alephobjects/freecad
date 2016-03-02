@@ -32,7 +32,8 @@ FREECAD_MINOR_VERSION=`grep "set(PACKAGE_VERSION_MINOR" ../CMakeLists.txt | cut 
 FREECAD_PATCH_VERSION=`grep "set(PACKAGE_VERSION_PATCH" ../CMakeLists.txt | cut -d \" -f 2`
 
 # Actually for PATCH version the following is implemented:
-# FREECAD_PATCH_VERSION=`git rev-list HEAD | wc -l | sed -e 's/ *//g' | xargs -n1 printf %04d`
+FREECAD_PATCH_VERSION=`git rev-list HEAD | wc -l | sed -e 's/ *//g' | xargs -n1 printf %04d`
+
 FULL_VERSION=${FREECAD_MAJOR_VERSION}.${FREECAD_MINOR_VERSION}.${FREECAD_PATCH_VERSION}
 
 echo "Trying to build FreeCAD $FULL_VERSION "
