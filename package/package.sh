@@ -70,7 +70,10 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	cd $SCRIPT_DIR
 	# Debian package directory should reside inside the target directory
 	mkdir -p ${TARGET_DIR}/DEBIAN
-	cat debian_control | sed "s/\[BUILD_VERSION\]/${FULL_VERSION}/" | sed "s/\[ARCH\]/${BUILD_ARCH}/" > ${TARGET_DIR}/DEBIAN/control
+	cat debian/control | sed "s/\[BUILD_VERSION\]/${FULL_VERSION}/" | sed "s/\[ARCH\]/${BUILD_ARCH}/" > ${TARGET_DIR}/DEBIAN/control
+	cp debian/postinst ${TARGET_DIR}/DEBIAN/postinst
+	cp debian/postrm ${TARGET_DIR}/DEBIAN/postrm
+	cp debian/prerm ${TARGET_DIR}/DEBIAN/prerm
 
 #	chmod 755 scripts/linux/${TARGET_DIR}/usr -R
 # 	
