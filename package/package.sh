@@ -93,7 +93,7 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	mkdir -p ${TARGET_DIR}/usr/share/man
 	mkdir -p ${TARGET_DIR}/usr/share/man/man1
 	gzip -c  debian/freecad.1 >  ${TARGET_DIR}/usr/share/man/man1/freecad.1.gz
-	# freecadcmd.1.gz is missing
+	ln -s freecad.1.gz ${TARGET_DIR}/usr/share/man/man1/freecadcmd.1.gz
 
 	mkdir -p ${TARGET_DIR}/usr/share/menu
 	mkdir -p ${TARGET_DIR}/usr/share/menu/freecad
@@ -106,6 +106,7 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	mkdir -p ${TARGET_DIR}/usr/share/python
 	mkdir -p ${TARGET_DIR}/usr/share/python/runtime.d
 	cp debian/freecad.rtupdate ${TARGET_DIR}/usr/share/python/runtime.d/
+	chmod a+x ${TARGET_DIR}/usr/share/python/runtime.d/freecad.rtupdate
 # Additional Debian-specific stuff: bin directory:
 	mkdir -p ${TARGET_DIR}/usr/bin
 	ln -s ../lib/freecad/bin/FreeCAD ${TARGET_DIR}/usr/bin/freecad

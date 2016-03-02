@@ -1,11 +1,8 @@
-Source: freecad
 Package: freecad
 Version: [BUILD_VERSION]
-Maintainer: Aleph Objects, Inc. <info@alephobjects.com>
-Section: science
-Priority: optional
 Architecture: [ARCH]
-Essential: no
+Maintainer: Aleph Objects, Inc. <info@alephobjects.com>
+Installed-Size: 100000
 Depends:  libsoqt4-20 (>= 1.6), 
 	python-collada, python-matplotlib, python-pivy (>= 0.5.0~v609hg-2), python-ply, python-pyside, python:any (>= 2.6.6-7~), python2.7, 
 	libboost-filesystem1.55.0, libboost-program-options1.55.0, libboost-python1.55.0, libboost-regex1.55.0, libboost-signals1.55.0, 
@@ -17,8 +14,9 @@ Depends:  libsoqt4-20 (>= 1.6),
 	libqt4-xmlpatterns (>= 4:4.5.3), libqtcore4 (>= 4:4.8.0), libqtgui4 (>= 4:4.8.0), libqtwebkit4 (>= 2.1.0~2011week13), 
 	libshiboken1.2 (>= 1.1.0), libsm6, libspnav0, libstdc++6 (>= 4.9), libx11-6, libxerces-c3.1, libxext6, 
 	libzipios++0c2a, zlib1g (>= 1:1.1.4)
-Provides: freecad
-Installed-Size: 100000
+Section: science
+Priority: extra
+Homepage: http://freecadweb.org/
 Description:  Extensible Open Source CAx program (alpha)
  FreeCAD is an Open Source CAx RAD based on OpenCasCade, Qt and Python.
  It features some key concepts like macro recording, workbenches, ability
