@@ -1,32 +1,25 @@
 Source: freecad
-Section: science
-Priority: extra
-Maintainer: Debian Science Maintainers <debian-science-maintainers@lists.alioth.debian.org>
-Uploaders: Teemu Ikonen <tpikonen@gmail.com>, "Adam C. Powell, IV" <hazelsct@debian.org>, Anton Gladky <gladky.anton@gmail.com>
-Vcs-Browser: http://git.debian.org/?p=debian-science/packages/freecad.git
-Vcs-Git: git://git.debian.org/git/debian-science/packages/freecad.git
-Homepage: http://www.freecadweb.org/
-Build-Depends: debhelper (>= 7.0.50~), cmake, 
- libboost-dev, libboost-date-time-dev, libboost-filesystem-dev,
- libboost-graph-dev, libboost-iostreams-dev, libboost-program-options-dev,
- libboost-regex-dev, libboost-serialization-dev, libboost-signals-dev,
- libboost-thread-dev, libboost-python-dev, python-dev, python-support,
- libqt4-dev, libxt-dev, libxext-dev, libxmu-dev, libxi-dev, libx11-dev,
- libcoin60-dev, libsoqt4-dev, libeigen3-dev,
- zlib1g-dev, libxerces-c2-dev, liboce-foundation-dev,
- liboce-modeling-dev, liboce-ocaf-dev, liboce-visualization-dev,
- python-cxx-dev, libswscale-dev, libzipios++-dev, swig, gfortran,
- f2c, libqtwebkit-dev, libspnav-dev, libfreetype6-dev, libfreeimage-dev,
- libpyside-dev, libshiboken-dev, pyside-tools, netgen-headers
-Standards-Version: 3.9.3
-
 Package: freecad
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python-pyside.qtcore,
- python-pyside.qtsvg, python-pyside.qtuitools
-Recommends: python-pivy, python
-Suggests: freecad-doc
-Description: Extensible Open Source CAx program (beta)
+Version: [BUILD_VERSION]
+Maintainer: Aleph Objects, Inc. <info@alephobjects.com>
+Section: science
+Priority: optional
+Architecture: [ARCH]
+Essential: no
+Depends:  libsoqt4-20 (>= 1.6), 
+	python-collada, python-matplotlib, python-pivy (>= 0.5.0~v609hg-2), python-ply, python-pyside, python:any (>= 2.6.6-7~), python2.7, 
+	libboost-filesystem1.55.0, libboost-program-options1.55.0, libboost-python1.55.0, libboost-regex1.55.0, libboost-signals1.55.0, 
+	libboost-system1.55.0, libboost-thread1.55.0, libc6 (>= 2.14), libcoin80, libfreeimage3, libfreetype6 (>= 2.2.1), 
+	libgcc1 (>= 1:4.1.1), libgl1-mesa-glx | libgl1, libglu1-mesa | libglu1, libice6 (>= 1:1.0.0), 
+	liboce-foundation8, liboce-modeling8, liboce-ocaf-lite8, liboce-ocaf8, liboce-visualization8, 
+	libpyside1.2 (>= 1.0.0~beta3), libpython2.7 (>= 2.7), 
+	libqt4-network (>= 4:4.5.3), libqt4-opengl (>= 4:4.6.1), libqt4-svg (>= 4:4.5.3), libqt4-xml (>= 4:4.5.3), 
+	libqt4-xmlpatterns (>= 4:4.5.3), libqtcore4 (>= 4:4.8.0), libqtgui4 (>= 4:4.8.0), libqtwebkit4 (>= 2.1.0~2011week13), 
+	libshiboken1.2 (>= 1.1.0), libsm6, libspnav0, libstdc++6 (>= 4.9), libx11-6, libxerces-c3.1, libxext6, 
+	libzipios++0c2a, zlib1g (>= 1:1.1.4)
+Provides: freecad
+Installed-Size: 100000
+Description:  Extensible Open Source CAx program (alpha)
  FreeCAD is an Open Source CAx RAD based on OpenCasCade, Qt and Python.
  It features some key concepts like macro recording, workbenches, ability
  to run as a server and dynamically loadable application extensions and
@@ -35,35 +28,3 @@ Description: Extensible Open Source CAx program (beta)
  Currently, FreeCAD can import and display CAD models in IGES, STEP, and
  BRep formats and meshes in STL, BMS, AST and Wavefront OBJ formats.
  Editing and modeling features are currently somewhat limited.
-
-Package: freecad-dev
-Architecture: any
-Section: libdevel
-Depends: ${shlibs:Depends}, ${misc:Depends}, freecad (= ${binary:Version})
-Description: FreeCAD development files
- FreeCAD is an Open Source CAx RAD based on OpenCasCade, Qt and Python.
- It features some key concepts like macro recording, workbenches, ability
- to run as a server and dynamically loadable application extensions and
- it is designed to be platform independent.
- For more details see http://sourceforge.net/projects/free-cad
- .
- This package contains headers and symlinks necessary to
- develop modules for FreeCAD.
-
-Package: freecad-doc
-Architecture: all
-Section: doc
-Depends: ${misc:Depends}, qt4-dev-tools
-Description: FreeCAD documentation
- FreeCAD is an Open Source CAx RAD based on OpenCasCade, Qt and Python.
- It features some key concepts like macro recording, workbenches, ability
- to run as a server and dynamically loadable application extensions and
- it is designed to be platform independent.
- For more details see http://sourceforge.net/projects/free-cad
- .
- This package contains the FreeCAD documentation.
- .
- The documentation is provided in Qt's new help format;
- the new help format version can be viewed in conjunction with the Qt Assistant
- found in the qt4-dev-tools package.
-
