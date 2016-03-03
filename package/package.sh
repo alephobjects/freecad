@@ -125,13 +125,13 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 # Debian package directory should reside inside the target directory
 	mkdir -p ${TARGET_DIR}/DEBIAN
 	cat debian/control | sed "s/\[BUILD_VERSION\]/${FULL_VERSION}/" | sed "s/\[ARCH\]/${BUILD_ARCH}/" > ${TARGET_DIR}/DEBIAN/control
-
+	chmod ugo+r,go-w ${TARGET_DIR}/DEBIAN/control
 	cp debian/postinst ${TARGET_DIR}/DEBIAN/postinst
-	chmod ugo+x,go-w ${TARGET_DIR}/DEBIAN/postinst
+	chmod ugo+rx,go-w ${TARGET_DIR}/DEBIAN/postinst
 	cp debian/postrm ${TARGET_DIR}/DEBIAN/postrm
-	chmod ugo+x,go-w ${TARGET_DIR}/DEBIAN/postrm
+	chmod ugo+rx,go-w ${TARGET_DIR}/DEBIAN/postrm
 	cp debian/prerm ${TARGET_DIR}/DEBIAN/prerm
-	chmod ugo+x,go-w ${TARGET_DIR}/DEBIAN/prerm
+	chmod ugo+rx,go-w ${TARGET_DIR}/DEBIAN/prerm
 # Now that the directory structure is ready, let's build a package	
 	fakeroot sh -ec "
 		chown root:root ${TARGET_DIR} -R
