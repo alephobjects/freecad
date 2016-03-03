@@ -85,6 +85,7 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	mkdir -p ${TARGET_DIR}/usr/share/freecad
 	ln -s ../../lib/freecad/Mod ${TARGET_DIR}/usr/share/freecad/Mod
 	cp ${TARGET_DIR}/usr/lib/freecad/data/freecad.xpm ${TARGET_DIR}/usr/share/freecad/freecad.xpm
+	chmod a+r ${TARGET_DIR}/usr/share/freecad/freecad.xpm
 #	ln -s ../../lib/freecad/data/freecad.xpm ${TARGET_DIR}/usr/share/freecad/freecad.xpm
 
 	mkdir -p ${TARGET_DIR}/usr/share/lintian
