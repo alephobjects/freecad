@@ -68,8 +68,8 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	echo "Installing FreeCAD to  $TARGET_DIR"
 	rm -Rf $TARGET_DIR
 	mkdir -p $TARGET_DIR
-	chmod o+rwx $TARGET_DIR
-	chmod a+rx $TARGET_DIR
+	chmod u+rwx $TARGET_DIR
+	chmod a+rx  $TARGET_DIR
 # Installing
 	$MAKE DESTDIR=$TARGET_DIR install
 	if [ $? != 0 ]; then echo "Failed to Install FreeCAD"; exit 1; fi
@@ -131,13 +131,10 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	cat debian/control | sed "s/\[BUILD_VERSION\]/${FULL_VERSION}/" | sed "s/\[ARCH\]/${BUILD_ARCH}/" > ${TARGET_DIR}/DEBIAN/control
 	cp debian/postinst ${TARGET_DIR}/DEBIAN/postinst
 	cp debian/postrm ${TARGET_DIR}/DEBIAN/postrm
-	cp debian/prerm ${TARGET_DIR}/DEBIAN/prerm
-
-#	chmod 755 scripts/linux/${TARGET_DIR}/usr -R
+	cp debian/prerm ${TARGET_DIR}/DEBIAN/prer
 # 	
 	fakeroot sh -ec "
 		chown root:root ${TARGET_DIR} -R
-		chmod a+r ${TARGET_DIR} -R
 		chmod 755 ${TARGET_DIR}/DEBIAN -R
 		dpkg-deb -Zgzip --build ${TARGET_DIR} ${SCRIPT_DIR}/freecad_${FULL_VERSION}_${BUILD_ARCH}.deb
 		chown `id -un`:`id -gn` ${TARGET_DIR} -R
