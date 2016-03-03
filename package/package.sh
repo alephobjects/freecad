@@ -77,6 +77,7 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	
 	mkdir -p ${TARGET_DIR}/usr/share/applications
 	cp debian/freecad.desktop  ${TARGET_DIR}/usr/share/applications/
+	chmod a+r ${TARGET_DIR}/usr/share/applications/freecad.desktop
 
 	# doc
 	# doc/freecad
@@ -91,6 +92,7 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	mkdir -p ${TARGET_DIR}/usr/share/lintian
 	mkdir -p ${TARGET_DIR}/usr/share/lintian/overrides
 	cp debian/freecad.lintian-overrides ${TARGET_DIR}/usr/share/lintian/overrides/freecad
+	chmod a+r ${TARGET_DIR}/usr/share/lintian/overrides/freecad
 
 	mkdir -p ${TARGET_DIR}/usr/share/man
 	mkdir -p ${TARGET_DIR}/usr/share/man/man1
@@ -102,10 +104,12 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	mkdir -p ${TARGET_DIR}/usr/share/menu
 	mkdir -p ${TARGET_DIR}/usr/share/menu/freecad
 	cp debian/menu ${TARGET_DIR}/usr/share/menu/freecad/menu
+	chmod a+r ${TARGET_DIR}/usr/share/menu/freecad/menu
 
 	mkdir -p ${TARGET_DIR}/usr/share/mime
 	mkdir -p ${TARGET_DIR}/usr/share/mime/packages
 	cp debian/freecad.sharedmimeinfo ${TARGET_DIR}/usr/share/mime/packages/freecad.xml
+	chmod a+r ${TARGET_DIR}/usr/share/mime/packages/freecad.xml
 
 	mkdir -p ${TARGET_DIR}/usr/share/python
 	mkdir -p ${TARGET_DIR}/usr/share/python/runtime.d
