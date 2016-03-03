@@ -116,26 +116,22 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	ln -s ../lib/freecad/bin/FreeCAD ${TARGET_DIR}/usr/bin/freecad
 	ln -s ../lib/freecad/bin/FreeCADCmd  ${TARGET_DIR}/usr/bin/freecadcmd
 
-# We want to Set right permissions on /usr
-	chmod -R u+rwX,go+rX,go-w ${TARGET_DIR}/usr
-
 # Let's Remove bulcu doc directory for now
 	rm -rf  ${TARGET_DIR}/usr/doc
 	
 # Debian package directory should reside inside the target directory
 	mkdir -p ${TARGET_DIR}/DEBIAN
-	chmod ugo+rX,go-w ${TARGET_DIR}/DEBIAN
 	cat debian/control | sed "s/\[BUILD_VERSION\]/${FULL_VERSION}/" | sed "s/\[ARCH\]/${BUILD_ARCH}/" > ${TARGET_DIR}/DEBIAN/control
-	chmod ugo+r,go-w ${TARGET_DIR}/DEBIAN/control
 	cp debian/postinst ${TARGET_DIR}/DEBIAN/postinst
-	chmod ugo+rx,go-w ${TARGET_DIR}/DEBIAN/postinst
 	cp debian/postrm ${TARGET_DIR}/DEBIAN/postrm
-	chmod ugo+rx,go-w ${TARGET_DIR}/DEBIAN/postrm
 	cp debian/prerm ${TARGET_DIR}/DEBIAN/prerm
-	chmod ugo+rx,go-w ${TARGET_DIR}/DEBIAN/prerm
-# Now that the directory structure is ready, let's build a package	
+# Now that the directory structure is ready, let's build a package
+	rm -Rf ${SCRIPT_DIR}/freecad_*.deb
+# Let's delete the old builds:
 	fakeroot sh -ec "
 		chown root:root ${TARGET_DIR} -R
+		chmod u+w,a+rX,go-w ${TARGET_DIR} -R
+		chmod a+x ${TARGET_DIR}/DEBIAN -R
 		dpkg-deb -Zgzip --build ${TARGET_DIR} ${SCRIPT_DIR}/freecad_${FULL_VERSION}_${BUILD_ARCH}.deb
 		chown `id -un`:`id -gn` ${TARGET_DIR} -R
 	"
