@@ -68,11 +68,14 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	echo "Installing FreeCAD to  $TARGET_DIR"
 	rm -Rf $TARGET_DIR
 	mkdir -p $TARGET_DIR
+	chmod o+rwx $TARGET_DIR
+	chmod a+rx $TARGET_DIR
 # Installing
 	$MAKE DESTDIR=$TARGET_DIR install
 	if [ $? != 0 ]; then echo "Failed to Install FreeCAD"; exit 1; fi
 	cd $SCRIPT_DIR
 # Additional Debian-specific stuff: share directory
+	mkdir -p ${TARGET_DIR}/usr
 	mkdir -p ${TARGET_DIR}/usr/share
 	
 	mkdir -p ${TARGET_DIR}/usr/share/applications
