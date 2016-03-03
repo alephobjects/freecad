@@ -55,6 +55,10 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	echo "Building FreeCAD in $BUILD_DIR"
 #	rm -Rf $BUILD_DIR
 	mkdir -p $BUILD_DIR
+	# With chmod we'll keep all-readable settings for all of the directories...
+	chmod u+rwx $BUILD_DIR
+	chmod a+rx $BUILD_DIR
+
 	cd $BUILD_DIR
 	cmake 	-DCMAKE_INSTALL_PREFIX=/usr/lib/freecad \
 		-DCMAKE_INSTALL_DATADIR=/usr/lib/freecad/data \
@@ -65,6 +69,7 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	if [ $? != 0 ]; then echo "Failed to configure FreeCAD"; exit 1; fi
 	$MAKE -j3
 	if [ $? != 0 ]; then echo "Failed to Make FreeCAD"; exit 1; fi
+
 	echo "Installing FreeCAD to  $TARGET_DIR"
 	rm -Rf $TARGET_DIR
 	mkdir -p $TARGET_DIR
@@ -129,13 +134,16 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 # Debian package directory should reside inside the target directory
 	mkdir -p ${TARGET_DIR}/DEBIAN
 	cat debian/control | sed "s/\[BUILD_VERSION\]/${FULL_VERSION}/" | sed "s/\[ARCH\]/${BUILD_ARCH}/" > ${TARGET_DIR}/DEBIAN/control
+
 	cp debian/postinst ${TARGET_DIR}/DEBIAN/postinst
+	chmod u+x ${TARGET_DIR}/DEBIAN/postinst
 	cp debian/postrm ${TARGET_DIR}/DEBIAN/postrm
-	cp debian/prerm ${TARGET_DIR}/DEBIAN/prer
-# 	
+	chmod u+x ${TARGET_DIR}/DEBIAN/postrm
+	cp debian/prerm ${TARGET_DIR}/DEBIAN/prerm
+	chmod u+x ${TARGET_DIR}/DEBIAN/prerm
+# Now that the directory structure is ready, let's build a package	
 	fakeroot sh -ec "
 		chown root:root ${TARGET_DIR} -R
-		chmod 755 ${TARGET_DIR}/DEBIAN -R
 		dpkg-deb -Zgzip --build ${TARGET_DIR} ${SCRIPT_DIR}/freecad_${FULL_VERSION}_${BUILD_ARCH}.deb
 		chown `id -un`:`id -gn` ${TARGET_DIR} -R
 	"
