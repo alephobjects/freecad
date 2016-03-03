@@ -134,6 +134,7 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 # 	
 	fakeroot sh -ec "
 		chown root:root ${TARGET_DIR} -R
+		chmod a+r ${TARGET_DIR} -R
 		chmod 755 ${TARGET_DIR}/DEBIAN -R
 		dpkg-deb -Zgzip --build ${TARGET_DIR} ${SCRIPT_DIR}/freecad_${FULL_VERSION}_${BUILD_ARCH}.deb
 		chown `id -un`:`id -gn` ${TARGET_DIR} -R
