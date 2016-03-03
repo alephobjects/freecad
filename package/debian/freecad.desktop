@@ -1,11 +1,13 @@
 [Desktop Entry]
-Type=Application
+Version=1.0
 Name=FreeCAD
 Comment=Feature based Parametric Modeler
-Icon=/usr/share/freecad/freecad.xpm
+GenericName=CAD Application
 Exec=/usr/bin/freecad %F
 Path=/usr/lib/freecad
-StartupNotify=true
 Terminal=false
+Type=Application
+Icon=freecad
 Categories=Graphics;Engineering;
+StartupNotify=true
 MimeType=application/x-extension-fcstd
