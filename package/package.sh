@@ -55,9 +55,6 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	echo "Building FreeCAD in $BUILD_DIR"
 #	rm -Rf $BUILD_DIR
 	mkdir -p $BUILD_DIR
-	# With chmod we'll keep all-readable settings for all of the directories...
-	chmod u+rwx $BUILD_DIR
-	chmod a+rx $BUILD_DIR
 
 	cd $BUILD_DIR
 	cmake 	-DCMAKE_INSTALL_PREFIX=/usr/lib/freecad \
@@ -73,8 +70,6 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	echo "Installing FreeCAD to  $TARGET_DIR"
 	rm -Rf $TARGET_DIR
 	mkdir -p $TARGET_DIR
-	chmod u+rwx $TARGET_DIR
-	chmod a+rx  $TARGET_DIR
 # Installing
 	$MAKE DESTDIR=$TARGET_DIR install
 	if [ $? != 0 ]; then echo "Failed to Install FreeCAD"; exit 1; fi
@@ -85,7 +80,6 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	
 	mkdir -p ${TARGET_DIR}/usr/share/applications
 	cp debian/freecad.desktop  ${TARGET_DIR}/usr/share/applications/
-	chmod a+r ${TARGET_DIR}/usr/share/applications/freecad.desktop
 
 	# doc
 	# doc/freecad
@@ -94,30 +88,24 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	mkdir -p ${TARGET_DIR}/usr/share/freecad
 	ln -s ../../lib/freecad/Mod ${TARGET_DIR}/usr/share/freecad/Mod
 	cp ${TARGET_DIR}/usr/lib/freecad/data/freecad.xpm ${TARGET_DIR}/usr/share/freecad/freecad.xpm
-	chmod a+r ${TARGET_DIR}/usr/share/freecad/freecad.xpm
 #	ln -s ../../lib/freecad/data/freecad.xpm ${TARGET_DIR}/usr/share/freecad/freecad.xpm
 
 	mkdir -p ${TARGET_DIR}/usr/share/lintian
 	mkdir -p ${TARGET_DIR}/usr/share/lintian/overrides
 	cp debian/freecad.lintian-overrides ${TARGET_DIR}/usr/share/lintian/overrides/freecad
-	chmod a+r ${TARGET_DIR}/usr/share/lintian/overrides/freecad
 
 	mkdir -p ${TARGET_DIR}/usr/share/man
 	mkdir -p ${TARGET_DIR}/usr/share/man/man1
 	gzip -c  debian/freecad.1 >  ${TARGET_DIR}/usr/share/man/man1/freecad.1.gz
-	chmod u+rw ${TARGET_DIR}/usr/share/man/man1/freecad.1.gz
-	chmod a+r ${TARGET_DIR}/usr/share/man/man1/freecad.1.gz
 	ln -s freecad.1.gz ${TARGET_DIR}/usr/share/man/man1/freecadcmd.1.gz
 
 	mkdir -p ${TARGET_DIR}/usr/share/menu
 	mkdir -p ${TARGET_DIR}/usr/share/menu/freecad
 	cp debian/menu ${TARGET_DIR}/usr/share/menu/freecad/menu
-	chmod a+r ${TARGET_DIR}/usr/share/menu/freecad/menu
 
 	mkdir -p ${TARGET_DIR}/usr/share/mime
 	mkdir -p ${TARGET_DIR}/usr/share/mime/packages
 	cp debian/freecad.sharedmimeinfo ${TARGET_DIR}/usr/share/mime/packages/freecad.xml
-	chmod a+r ${TARGET_DIR}/usr/share/mime/packages/freecad.xml
 
 	mkdir -p ${TARGET_DIR}/usr/share/python
 	mkdir -p ${TARGET_DIR}/usr/share/python/runtime.d
@@ -128,19 +116,22 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	ln -s ../lib/freecad/bin/FreeCAD ${TARGET_DIR}/usr/bin/freecad
 	ln -s ../lib/freecad/bin/FreeCADCmd  ${TARGET_DIR}/usr/bin/freecadcmd
 
+# We want to Set right permissions on /usr
+	chmod -R u+rwX,go+rX,go-w ${TARGET_DIR}/usr
+
 # Let's Remove bulcu doc directory for now
-	rm -rf  ${TARGET_DIR}/usr/doc	
+	rm -rf  ${TARGET_DIR}/usr/doc
 	
 # Debian package directory should reside inside the target directory
 	mkdir -p ${TARGET_DIR}/DEBIAN
 	cat debian/control | sed "s/\[BUILD_VERSION\]/${FULL_VERSION}/" | sed "s/\[ARCH\]/${BUILD_ARCH}/" > ${TARGET_DIR}/DEBIAN/control
 
 	cp debian/postinst ${TARGET_DIR}/DEBIAN/postinst
-	chmod u+x ${TARGET_DIR}/DEBIAN/postinst
+	chmod ugo+x,go-w ${TARGET_DIR}/DEBIAN/postinst
 	cp debian/postrm ${TARGET_DIR}/DEBIAN/postrm
-	chmod u+x ${TARGET_DIR}/DEBIAN/postrm
+	chmod ugo+x,go-w ${TARGET_DIR}/DEBIAN/postrm
 	cp debian/prerm ${TARGET_DIR}/DEBIAN/prerm
-	chmod u+x ${TARGET_DIR}/DEBIAN/prerm
+	chmod ugo+x,go-w ${TARGET_DIR}/DEBIAN/prerm
 # Now that the directory structure is ready, let's build a package	
 	fakeroot sh -ec "
 		chown root:root ${TARGET_DIR} -R
