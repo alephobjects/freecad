@@ -23,6 +23,7 @@
 
 #include "PreCompiled.h"
 #ifndef _PreComp_
+# include <algorithm>
 # include <qaction.h>
 # include <qdir.h>
 # include <qfileinfo.h>
@@ -43,6 +44,7 @@
 #include <Gui/View3DInventorViewer.h>
 
 #include "../App/PointsFeature.h"
+#include "../App/Properties.h"
 #include "DlgPointsReadImp.h"
 #include "ViewProvider.h"
 
@@ -173,6 +175,70 @@ bool CmdPointsTransform::isActive(void)
     return getSelection().countObjectsOfType(Points::Feature::getClassTypeId()) > 0;
 }
 
+DEF_STD_CMD_A(CmdPointsConvert);
+
+CmdPointsConvert::CmdPointsConvert()
+  :Command("Points_Convert")
+{
+    sAppModule    = "Points";
+    sGroup        = QT_TR_NOOP("Points");
+    sMenuText     = QT_TR_NOOP("Convert to points");
+    sToolTipText  = QT_TR_NOOP("Convert to points");
+    sWhatsThis    = QT_TR_NOOP("Convert to points");
+    sStatusTip    = QT_TR_NOOP("Convert to points");
+}
+
+void CmdPointsConvert::activated(int iMsg)
+{
+    openCommand("Convert to points");
+    std::vector<App::DocumentObject*> meshes = getSelection().getObjectsOfType(Base::Type::fromName("Mesh::Feature"));
+    for (std::vector<App::DocumentObject*>::iterator it = meshes.begin(); it != meshes.end(); ++it) {
+        App::PropertyComplexGeoData* prop = dynamic_cast<App::PropertyComplexGeoData*>((*it)->getPropertyByName("Mesh"));
+        if (prop) {
+            const Data::ComplexGeoData* data = prop->getComplexData();
+            std::vector<Base::Vector3d> vertexes;
+            std::vector<Base::Vector3d> normals;
+            data->getPoints(vertexes, normals, 0.0f);
+            if (!vertexes.empty()) {
+                Points::Feature* fea = 0;
+                if (vertexes.size() == normals.size()) {
+                    fea = static_cast<Points::Feature*>(Base::Type::fromName("Points::FeatureCustom").createInstance());
+                    if (!fea) {
+                        Base::Console().Error("Failed to create instance of 'Points::FeatureCustom'\n");
+                        continue;
+                    }
+                    Points::PropertyNormalList* prop = static_cast<Points::PropertyNormalList*>
+                        (fea->addDynamicProperty("Points::PropertyNormalList", "Normal"));
+                    if (prop) {
+                        std::vector<Base::Vector3f> normf;
+                        normf.resize(normals.size());
+                        std::transform(normals.begin(), normals.end(), normf.begin(), Base::toVector<float, double>);
+                        prop->setValues(normf);
+                    }
+                }
+                else {
+                    fea = new Points::Feature;
+                }
+
+                Points::PointKernel kernel;
+                kernel.reserve(vertexes.size());
+                for (std::vector<Base::Vector3d>::iterator pt = vertexes.begin(); pt != vertexes.end(); ++pt)
+                    kernel.push_back(*pt);
+                fea->Points.setValue(kernel);
+
+                App::Document* doc = (*it)->getDocument();
+                doc->addObject(fea, "Points");
+            }
+        }
+    }
+    commitCommand();
+}
+
+bool CmdPointsConvert::isActive(void)
+{
+    return getSelection().countObjectsOfType(Base::Type::fromName("Mesh::Feature")) > 0;
+}
+
 DEF_STD_CMD_A(CmdPointsPolyCut);
 
 CmdPointsPolyCut::CmdPointsPolyCut()
@@ -222,5 +288,6 @@ void CreatePointsCommands(void)
     rcCmdMgr.addCommand(new CmdPointsImport());
     rcCmdMgr.addCommand(new CmdPointsExport());
     rcCmdMgr.addCommand(new CmdPointsTransform());
+    rcCmdMgr.addCommand(new CmdPointsConvert());
     rcCmdMgr.addCommand(new CmdPointsPolyCut());
 }
