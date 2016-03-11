@@ -922,6 +922,7 @@ void Application::destruct(void)
     ScriptFactorySingleton::Destruct();
     InterpreterSingleton::Destruct();
     Base::Type::destruct();
+    ParameterManager::Terminate();
 }
 
 void Application::destructObserver(void)
@@ -1139,7 +1140,7 @@ void Application::initTypes(void)
     App ::ConditionalExpression     ::init();
     App ::StringExpression          ::init();
     App ::FunctionExpression        ::init();
-
+    App ::BooleanExpression         ::init();
 }
 
 void Application::initConfig(int argc, char ** argv)
