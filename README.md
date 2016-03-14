@@ -1,8 +1,12 @@
 Aleph Objects Mirror
 --------------------
 
-This is the Aleph Objects mirror of FreeCAD master repository. Please visit
-FreeCAD Universe below:
+This is the Aleph Objects mirror of FreeCAD master repository.
+To sync this repository with the official one (done weekly):
+	git pull https://github.com/FreeCAD/FreeCAD
+
+
+Please visit FreeCAD Universe below:
 
 FreeCAD
 -------

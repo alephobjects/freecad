@@ -29,7 +29,7 @@ TAR=tar
 
 FREECAD_MAJOR_VERSION=`grep "set(PACKAGE_VERSION_MAJOR" ../CMakeLists.txt | cut -d \" -f 2`
 FREECAD_MINOR_VERSION=`grep "set(PACKAGE_VERSION_MINOR" ../CMakeLists.txt | cut -d \" -f 2`
-FREECAD_PATCH_VERSION=`grep "set(PACKAGE_VERSION_PATCH" ../CMakeLists.txt | cut -d \" -f 2`
+# FREECAD_PATCH_VERSION=`grep "set(PACKAGE_VERSION_PATCH" ../CMakeLists.txt | cut -d \" -f 2`
 
 # Actually for PATCH version the following is implemented:
 FREECAD_PATCH_VERSION=`git rev-list HEAD | wc -l | sed -e 's/ *//g' | xargs -n1 printf %04d`
