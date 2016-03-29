@@ -57,7 +57,8 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 	mkdir -p $BUILD_DIR
 
 	cd $BUILD_DIR
-	cmake 	-DCMAKE_INSTALL_PREFIX=/usr/lib/freecad \
+	cmake 	-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_INSTALL_PREFIX=/usr/lib/freecad \
 		-DCMAKE_INSTALL_DATADIR=/usr/lib/freecad/data \
 		-DCMAKE_INSTALL_DOCDIR=/usr/doc \
 		-DCMAKE_INSTALL_INCLUDEDIR=/usr/include/freecad \
