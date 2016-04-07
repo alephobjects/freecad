@@ -158,6 +158,7 @@ void Command::setFromGCode (const std::string& str)
                     value = "";
                     mode = "argument";
                 } else {
+		    printf("...Error on %s\n", str.c_str());
                     throw Base::Exception("Badly formatted GCode command");
                 }
                 mode = "argument";
@@ -171,7 +172,9 @@ void Command::setFromGCode (const std::string& str)
                     key = "";
                     value = "";
                 } else {
-                    throw Base::Exception("Badly formatted GCode argument");
+		    printf("...Error on %s\n", str.c_str());
+		    // std::cout << "...Bad String: " << str << std::endl;
+                    throw Base::Exception("Badly formatted GCode alphabetic argument");
                 }
             } else if (mode == "comment") {
                 value += str[i];
@@ -201,6 +204,7 @@ void Command::setFromGCode (const std::string& str)
             Parameters[key] = val;
         }
     } else {
+	printf("...Error on %s\n", str.c_str());
         throw Base::Exception("Badly formatted GCode argument");
     }
 }

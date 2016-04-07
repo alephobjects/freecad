@@ -55,7 +55,7 @@ def insert(filename,docname):
             
 def parse(inputstring):
     "parse(inputstring): returns a parsed output string"
-    print "preprocessing..."
+    print "slic3r preprocessing..."
     
     # split the input by line
     lines = inputstring.split("\n")
@@ -75,6 +75,7 @@ def parse(inputstring):
             # replace ; comments with ()
             l = l.replace(";","(")
             l = l+")"
+	    # print "Commenting line \"%s\"" %l
         if l[0].upper() in ["G","M","("]:
             # found a G or M command: we store it
             output += l + "\n"
@@ -89,7 +90,7 @@ def parse(inputstring):
             # no G or M command: we repeat the last one
             output += lastcommand + " " + l + "\n"
             
-    print "done preprocessing."
+    print "slic3r done preprocessing."
     return output
 
 
