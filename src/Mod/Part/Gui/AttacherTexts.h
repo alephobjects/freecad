@@ -1,5 +1,6 @@
 /***************************************************************************
- *   Copyright (c) 2008 Jürgen Riegel (juergen.riegel@web.de)              *
+ *   Copyright (c) Victor Titov (DeepSOIC)                                 *
+ *                                           (vv.titov@gmail.com) 2016     *
  *                                                                         *
  *   This file is part of the FreeCAD CAx development system.              *
  *                                                                         *
@@ -20,47 +21,39 @@
  *                                                                         *
  ***************************************************************************/
 
+/**
+  * AttacherTexts.h, .cpp - files that contain user-friendly translatable names
+  * of attachment modes, as well as help texts, and the like.
+  */
 
-#ifndef Fem_FemMeshObject_H
-#define Fem_FemMeshObject_H
-
-#include <App/GeoFeature.h>
-#include <App/PropertyFile.h>
-#include <App/PropertyGeo.h>
-
-#include "FemMesh.h"
-#include "FemMeshProperty.h"
-
-namespace Fem
-{
-
-class AppFemExport FemMeshObject : public App::GeoFeature
-{
-    PROPERTY_HEADER(Fem::FemMeshObject);
-
-public:
-    /// Constructor
-    FemMeshObject(void);
-    virtual ~FemMeshObject();
-
-    /// returns the type name of the ViewProvider
-    virtual const char* getViewProviderName(void) const {
-        return "FemGui::ViewProviderFemMesh";
-    }
-    virtual App::DocumentObjectExecReturn *execute(void) {
-        return App::DocumentObject::StdReturn;
-    }
-    virtual short mustExecute(void) const;
-    virtual PyObject *getPyObject(void);
-
-    PropertyFemMesh FemMesh;
-
-protected:
-    /// get called by the container when a property has changed
-    virtual void onChanged (const App::Property* prop);
-};
-
-} //namespace Fem
+#ifndef PARTATTACHERTEXTS_H
+#define PARTATTACHERTEXTS_H
 
 
-#endif // Fem_FemMeshObject_H
+#include <vector>
+#include <QString>
+#include <QStringList>
+#include <Mod/Part/App/Attacher.h>
+
+namespace AttacherGui {
+
+typedef std::vector<QString> TextSet;
+
+/**
+ * @brief getUIStrings
+ * @param attacherType
+ * @param mmode
+ * @return vector of two QStrings:
+ * first is the name of attachment mode. e.g. "Tangent to surface";
+ * second is tooltip-style explanation of the mode, like "Plane is tangent to a surface at vertex."
+ */
+TextSet PartGuiExport getUIStrings(Base::Type attacherType, Attacher::eMapMode mmode);
+
+
+QString PartGuiExport getShapeTypeText(Attacher::eRefType type);
+
+QStringList PartGuiExport getRefListForMode(Attacher::AttachEngine &attacher, Attacher::eMapMode mmode);
+
+}
+
+#endif
