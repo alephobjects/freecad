@@ -81,6 +81,7 @@ namespace Gui
       void renameRejectedSlot();
       void editingStartSlot();
       void editingFinishedSlot();
+      void iconUpdateSlot(); //!< needed because python objects are not ready.
       
     private:
       Model(){}
@@ -110,6 +111,7 @@ namespace Gui
       void addVertexItemsToScene(const Vertex &vertexIn);
       void removeVertexItemsFromScene(const Vertex &vertexIn);
       void updateStates();
+      std::size_t columnFromMask(const ColumnMask&);
       
       RectItem* getRectFromPosition(const QPointF &position); //!< can be nullptr
       
@@ -150,6 +152,7 @@ namespace Gui
       QPixmap passPixmap;
       QPixmap failPixmap;
       QPixmap pendingPixmap;
+      Vertex lastAddedVertex = Graph::null_vertex(); //!< needed because python objects are not ready.
       
       QAction *renameAction;
       QAction *editingFinishedAction;

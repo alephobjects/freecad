@@ -25,6 +25,8 @@
 # include <QApplication>
 #endif
 #include "AttacherTexts.h"
+#include <Base/PyObjectBase.h>
+#include <Base/Console.h>
 
 using namespace Attacher;
 
@@ -92,6 +94,9 @@ TextSet getUIStrings(Base::Type attacherType, eMapMode mmode)
         case mmFolding:
             return TwoStrings(qApp->translate("Attacher3D", "Folding","Attachment3D mode caption"),
                               qApp->translate("Attacher3D", "Specialty mode for folding polyhedra. Select 4 edges in order: foldable edge, fold line, other fold line, other foldable edge. XY plane will be aligned to folding the first edge.","Attachment3D mode tooltip"));
+        case mmInertialCS:
+            return TwoStrings(qApp->translate("Attacher3D", "Inertial CS","Attachment3D mode caption"),
+                              qApp->translate("Attacher3D", "Inertial coordinate system, constructed on principal axes of inertia and center of mass.","Attachment3D mode tooltip"));
         default:
             break;
         }
@@ -142,10 +147,13 @@ TextSet getUIStrings(Base::Type attacherType, eMapMode mmode)
                               qApp->translate("Attacher2D", "Align plane to pass through three vertices.","AttachmentPlane mode tooltip"));
         case mmThreePointsNormal:
             return TwoStrings(qApp->translate("Attacher2D", "Normal to 3 points","AttachmentPlane mode caption"),
-                              qApp->translate("Attacher2D", "Plane will pass through first to vertices, and perpendicular to plane that passes through three vertices.","AttachmentPlane mode tooltip"));
+                              qApp->translate("Attacher2D", "Plane will pass through first two vertices, and perpendicular to plane that passes through three vertices.","AttachmentPlane mode tooltip"));
         case mmFolding:
             return TwoStrings(qApp->translate("Attacher2D", "Folding","AttachmentPlane mode caption"),
                               qApp->translate("Attacher2D", "Specialty mode for folding polyhedra. Select 4 edges in order: foldable edge, fold line, other fold line, other foldable edge. Plane will be aligned to folding the first edge.","AttachmentPlane mode tooltip"));
+        case mmInertialCS:
+            return TwoStrings(qApp->translate("Attacher2D", "Inertia 2-3","AttachmentPlane mode caption"),
+                              qApp->translate("Attacher2D", "Plane constructed on second and third principal axes of inertia (passes through center of mass).","AttachmentPlane mode tooltip"));
         default:
             break;
         }
@@ -203,6 +211,15 @@ TextSet getUIStrings(Base::Type attacherType, eMapMode mmode)
         case mm1Proximity:
             return TwoStrings(qApp->translate("Attacher1D", "Proximity line","AttachmentLine mode caption"),
                               qApp->translate("Attacher1D", "Line that spans the shortest distance between shapes.","AttachmentLine mode tooltip"));
+        case mm1AxisInertia1:
+            return TwoStrings(qApp->translate("Attacher1D", "1st principal axis","AttachmentLine mode caption"),
+                              qApp->translate("Attacher1D", "Line follows first principal axis of inertia.","AttachmentLine mode tooltip"));
+        case mm1AxisInertia2:
+            return TwoStrings(qApp->translate("Attacher1D", "2nd principal axis","AttachmentLine mode caption"),
+                              qApp->translate("Attacher1D", "Line follows second principal axis of inertia.","AttachmentLine mode tooltip"));
+        case mm1AxisInertia3:
+            return TwoStrings(qApp->translate("Attacher1D", "3rd principal axis","AttachmentLine mode caption"),
+                              qApp->translate("Attacher1D", "Line follows third principal axis of inertia.","AttachmentLine mode tooltip"));
         default:
             break;
         }
@@ -229,7 +246,7 @@ TextSet getUIStrings(Base::Type attacherType, eMapMode mmode)
                               qApp->translate("Attacher0D", "Center of osculating circle of an edge. Optinal vertex link defines where.","AttachmentPoint mode tooltip"));
         case mm0CenterOfMass:
             return TwoStrings(qApp->translate("Attacher0D", "Center of mass","AttachmentPoint mode caption"),
-                              qApp->translate("Attacher0D", "Not implemented","AttachmentPoint mode tooltip"));
+                              qApp->translate("Attacher0D", "Center of mass of all references (equal densities are assumed).","AttachmentPoint mode tooltip"));
         case mm0Intersection:
             return TwoStrings(qApp->translate("Attacher0D", "Intersection","AttachmentPoint mode caption"),
                               qApp->translate("Attacher0D", "Not implemented","AttachmentPoint mode tooltip"));
@@ -247,7 +264,7 @@ TextSet getUIStrings(Base::Type attacherType, eMapMode mmode)
         }
     }
 
-    assert(false && "No user-friendly string defined for this attachment mode.");
+    Base::Console().Warning("No user-friendly string defined for this attachment mode and attacher type: %s %s \n",AttachEngine::getModeName(mmode).c_str(), attacherType.getName());
     return TwoStrings(QString::fromStdString(AttachEngine::getModeName(mmode)), QString());
 }
 
@@ -298,9 +315,9 @@ QString getShapeTypeText(eRefType type)
 
 QStringList getRefListForMode(AttachEngine &attacher, eMapMode mmode)
 {
-    AttachEngine::refTypeStringList list = attacher.modeRefTypes[mmode];
+    refTypeStringList list = attacher.modeRefTypes[mmode];
     QStringList strlist;
-    for(AttachEngine::refTypeString &rts : list){
+    for(refTypeString &rts : list){
         QStringList buf;
         for(eRefType rt : rts){
             buf.append(getShapeTypeText(rt));
@@ -309,5 +326,66 @@ QStringList getRefListForMode(AttachEngine &attacher, eMapMode mmode)
     }
     return strlist;
 }
+
+
+// --------------------Py interface---------------------
+
+PyObject* AttacherGuiPy::sGetModeStrings(PyObject * /*self*/, PyObject *args, PyObject * /*kwd*/)
+{
+    int modeIndex = 0;
+    char* attacherType;
+    if (!PyArg_ParseTuple(args, "si", &attacherType, &modeIndex))
+        return NULL;
+
+    try {
+        Base::Type t = Base::Type::fromName(attacherType);
+        if (! t.isDerivedFrom(AttachEngine::getClassTypeId())){
+            std::stringstream ss;
+            ss << "Object of this type is not derived from AttachEngine: ";
+            ss << attacherType;
+            throw Py::TypeError(ss.str());
+        }
+        TextSet strs = getUIStrings(t,eMapMode(modeIndex));
+        Py::List result;
+        for(QString &s : strs){
+            QByteArray ba_utf8 = s.toUtf8();
+            result.append(Py::String(ba_utf8.data(), "utf-8"));
+        }
+
+        return Py::new_reference_to(result);
+    } catch (const Py::Exception&) {
+        return 0;
+    } catch (const Base::Exception& e) {
+        PyErr_SetString(Base::BaseExceptionFreeCADError, e.what());
+        return 0;
+    }
+}
+
+PyObject* AttacherGuiPy::sGetRefTypeUserFriendlyName(PyObject * /*self*/, PyObject *args, PyObject * /*kwd*/)
+{
+    int refTypeIndex = 0;
+    if (!PyArg_ParseTuple(args, "i", &refTypeIndex))
+        return NULL;
+
+    try {
+        QByteArray ba_utf8 = getShapeTypeText(eRefType(refTypeIndex)).toUtf8();
+        return Py::new_reference_to(Py::String(ba_utf8.data(), "utf-8"));
+    } catch (const Py::Exception&) {
+        return 0;
+    } catch (const Base::Exception& e) {
+        PyErr_SetString(Base::BaseExceptionFreeCADError, e.what());
+        return 0;
+    }
+}
+
+
+PyMethodDef AttacherGuiPy::Methods[] = {
+    {"getModeStrings",             (PyCFunction) AttacherGuiPy::sGetModeStrings, 1,
+     "getModeStrings(attacher_type, mode_index) - gets mode user-friendly name and brief description."},
+    {"getRefTypeUserFriendlyName", (PyCFunction) AttacherGuiPy::sGetRefTypeUserFriendlyName, 1,
+     "getRefTypeUserFriendlyName(type_index) - gets user-friendly name of AttachEngine's shape type."},
+    {NULL, NULL, 0, NULL}  /* Sentinel */
+};
+
 
 } //namespace AttacherGui

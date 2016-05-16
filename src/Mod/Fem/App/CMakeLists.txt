@@ -70,52 +70,63 @@ SET(Mod_SRCS
 SOURCE_GROUP("Module" FILES ${Mod_SRCS})
 
 SET(FemScripts_SRCS
-    _CommandFemBeamSection.py
-    _CommandFemFromShape.py
-    _CommandFemShellThickness.py
-    _CommandFemSolverCalculix.py
+    _CommandAnalysis.py
+    _CommandBeamSection.py
+    _CommandControlSolver.py
     _CommandMechanicalMaterial.py
-    _CommandMechanicalShowResult.py
-    _CommandNewMechanicalAnalysis.py
-    _CommandPurgeFemResults.py
-    _CommandQuickAnalysis.py
-    _CommandSolverJobControl.py
+    _CommandShowResult.py
+    _CommandMeshFromShape.py
+    _CommandPurgeResults.py
+    _CommandRunSolver.py
+    _CommandShellThickness.py
+    _CommandSolverCalculix.py
+    _CommandSolverZ88.py
     _FemAnalysis.py
     _FemBeamSection.py
     _FemShellThickness.py
     _FemSolverCalculix.py
+    _FemSolverZ88.py
     _MechanicalMaterial.py
     _TaskPanelFemBeamSection.py
     _TaskPanelFemShellThickness.py
     _TaskPanelFemSolverCalculix.py
     _TaskPanelMechanicalMaterial.py
-    _TaskPanelResultControl.py
+    _TaskPanelShowResult.py
     _ViewProviderFemAnalysis.py
     _ViewProviderFemBeamSection.py
     _ViewProviderFemShellThickness.py
     _ViewProviderFemSolverCalculix.py
+    _ViewProviderFemSolverZ88.py
     _ViewProviderMechanicalMaterial.py
     ccxDatReader.py
     ccxFrdReader.py
-    ccxInpWriter.py
     convert2TetGen.py
+    importZ88Mesh.py
     Init.py
     InitGui.py
     FemAnalysis.py
     FemCommands.py
     FemBeamSection.py
+    FemInputWriter.py
+    FemInputWriterCcx.py
+    FemInputWriterZ88.py
+    FemMeshTools.py
     FemShellThickness.py
     FemSolverCalculix.py
+    FemSolverZ88.py
     FemTools.py
+    FemToolsCcx.py
+    FemToolsZ88.py
     MechanicalMaterial.py
-    SelectionObserverFem.py
+    FemSelectionObserver.py
     TestFem.py
+    z88DispReader.py
 
     TaskPanelFemBeamSection.ui
     TaskPanelFemShellThickness.ui
     TaskPanelFemSolverCalculix.ui
     TaskPanelMechanicalMaterial.ui
-    TaskPanelShowDisplacement.ui
+    TaskPanelShowResult.ui
 )
 #SOURCE_GROUP("Scripts" FILES ${FemScripts_SRCS})
 

@@ -248,6 +248,22 @@ void Model::slotNewObject(const ViewProviderDocumentObject &VPDObjectIn)
   (*theGraph)[virginVertex].text->setFont(this->font());
   
   graphDirty = true;
+  
+  //we are here before python objects are instantiated. so at this point
+  //the getIcon method doesn't reflect the python override.
+  //so we hack in a delay to get the latest icon and set it for the graphics item.
+  lastAddedVertex = virginVertex;
+  QTimer::singleShot(0, this, SLOT(iconUpdateSlot()));
+}
+
+void Model::iconUpdateSlot()
+{
+  if (lastAddedVertex == Graph::null_vertex())
+    return;
+  const ViewProviderDocumentObject *VPDObject = findRecord(lastAddedVertex, *graphLink).VPDObject;
+  (*theGraph)[lastAddedVertex].icon->setPixmap(VPDObject->getIcon().pixmap(iconSize, iconSize));
+  lastAddedVertex = Graph::null_vertex();
+  this->invalidate();
 }
 
 void Model::slotDeleteObject(const ViewProviderDocumentObject &VPDObjectIn)
@@ -264,6 +280,9 @@ void Model::slotDeleteObject(const ViewProviderDocumentObject &VPDObjectIn)
   auto inRange = boost::in_edges(vertex, *theGraph);
   for (auto inEdgeIt = inRange.first; inEdgeIt != inRange.second; ++inEdgeIt)
     this->removeItem((*theGraph)[*inEdgeIt].connector.get());
+  
+  if (vertex == lastAddedVertex)
+    lastAddedVertex = Graph::null_vertex();
   
   //remove the actual vertex.
   boost::clear_vertex(vertex, *theGraph);
@@ -298,7 +317,8 @@ void Model::slotChangeObject(const ViewProviderDocumentObject &VPDObjectIn, cons
     "App::PropertyLink",
     "App::PropertyLinkList",
     "App::PropertyLinkSub",
-    "App::PropertyLinkSubList"
+    "App::PropertyLinkSubList",
+    "App::PropertyLinkPickList"
   };
   
   if (linkTypes.find(propertyIn.getTypeId().getName()) != linkTypes.end())
@@ -599,7 +619,7 @@ void Model::updateSlot()
           //go with first visible parent for now.
           if (!(*theGraph)[currentParent].dagVisible)
             continue;
-          destinationColumn = static_cast<int>(std::log2((*theGraph)[currentParent].column.to_ulong()));
+          destinationColumn = static_cast<int>(columnFromMask((*theGraph)[currentParent].column));
           break;
         }
       }
@@ -671,14 +691,15 @@ void Model::updateSlot()
       Vertex target = boost::target(*it, *theGraph);
       if (!(*theGraph)[target].dagVisible)
         continue; //we don't make it here if source isn't visible. So don't have to worry about that.
-      float dependentX = pointSpacing * static_cast<int>(std::log2((*theGraph)[target].column.to_ulong())) + pointSize / 2.0; //on center.
+      float dependentX = pointSpacing * static_cast<int>(columnFromMask((*theGraph)[target].column)) + pointSize / 2.0; //on center.
+      columnFromMask((*theGraph)[target].column);
       float dependentY = rowHeight * (*theGraph)[target].row + rowHeight / 2.0;
       
       QGraphicsPathItem *pathItem = (*theGraph)[*it].connector.get();
       pathItem->setBrush(Qt::NoBrush);
       QPainterPath path;
       path.moveTo(currentX, currentY);
-      if (currentColumn == static_cast<int>(std::log2((*theGraph)[target].column.to_ulong())))
+      if (currentColumn == static_cast<int>(columnFromMask((*theGraph)[target].column)))
         path.lineTo(currentX, dependentY); //straight connector in y.
       else
       {
@@ -860,6 +881,12 @@ void Model::updateStates()
       (*theGraph)[currentVertex].lastFeatureState = currentFeatureState;
     }
   }
+}
+
+std::size_t Model::columnFromMask(const ColumnMask &maskIn)
+{
+  std::string maskString = maskIn.to_string();
+  return maskString.size() - maskString.find("1") - 1;
 }
 
 RectItem* Model::getRectFromPosition(const QPointF& position)

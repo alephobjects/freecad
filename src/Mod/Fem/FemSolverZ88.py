@@ -1,6 +1,6 @@
 # ***************************************************************************
 # *                                                                         *
-# *   Copyright (c) 2015 - Bernd Hahnebach <bernd@bimstatik.org>            *
+# *   Copyright (c) 2016 - Bernd Hahnebach <bernd@bimstatik.org>            *
 # *                                                                         *
 # *   This program is free software; you can redistribute it and/or modify  *
 # *   it under the terms of the GNU Lesser General Public License (LGPL)    *
@@ -20,34 +20,20 @@
 # *                                                                         *
 # ***************************************************************************
 
-__title__ = "_CommandFemBeamSection"
+__title__ = "FemSolverZ88"
 __author__ = "Bernd Hahnebach"
 __url__ = "http://www.freecadweb.org"
 
 
 import FreeCAD
-from FemCommands import FemCommands
-
-if FreeCAD.GuiUp:
-    import FreeCADGui
-    from PySide import QtCore
+import _FemSolverZ88
 
 
-class _CommandFemBeamSection(FemCommands):
-    "The Fem_BeamSection command definition"
-    def __init__(self):
-        super(_CommandFemBeamSection, self).__init__()
-        self.resources = {'Pixmap': 'fem-beam-section',
-                          'MenuText': QtCore.QT_TRANSLATE_NOOP("Fem_BeamSection", "FEM Beam Cross Section Definition ..."),
-                          'Accel': "C, B",
-                          'ToolTip': QtCore.QT_TRANSLATE_NOOP("Fem_BeamSection", "Creates a FEM Beam Cross Section")}
-        self.is_active = 'with_analysis'
-
-    def Activated(self):
-        FreeCAD.ActiveDocument.openTransaction("Create FemBeamSection")
-        FreeCADGui.addModule("FemBeamSection")
-        FreeCADGui.doCommand("FemGui.getActiveAnalysis().Member = FemGui.getActiveAnalysis().Member + [FemBeamSection.makeFemBeamSection()]")
-
-
-if FreeCAD.GuiUp:
-    FreeCADGui.addCommand('Fem_BeamSection', _CommandFemBeamSection())
+def makeFemSolverZ88(name="Z88"):
+    '''makeSolverZ88(name): makes a Z88 solver object'''
+    obj = FreeCAD.ActiveDocument.addObject("Fem::FemSolverObjectPython", name)
+    _FemSolverZ88._FemSolverZ88(obj)
+    if FreeCAD.GuiUp:
+        import _ViewProviderFemSolverZ88
+        _ViewProviderFemSolverZ88._ViewProviderFemSolverZ88(obj.ViewObject)
+    return obj

@@ -1,6 +1,6 @@
 # ***************************************************************************
 # *                                                                         *
-# *   Copyright (c) 2015 - Bernd Hahnebach <bernd@bimstatik.org>            *
+# *   Copyright (c) 2016 - Bernd Hahnebach <bernd@bimstatik.org>            *
 # *                                                                         *
 # *   This program is free software; you can redistribute it and/or modify  *
 # *   it under the terms of the GNU Lesser General Public License (LGPL)    *
@@ -20,34 +20,42 @@
 # *                                                                         *
 # ***************************************************************************
 
-__title__ = "_CommandFemShellThickness"
+__title__ = "_FemSolverZ88"
 __author__ = "Bernd Hahnebach"
 __url__ = "http://www.freecadweb.org"
 
 
 import FreeCAD
-from FemCommands import FemCommands
-
-if FreeCAD.GuiUp:
-    import FreeCADGui
-    from PySide import QtCore
+import FemToolsZ88
 
 
-class _CommandFemShellThickness(FemCommands):
-    "The Fem_ShellThickness command definition"
-    def __init__(self):
-        super(_CommandFemShellThickness, self).__init__()
-        self.resources = {'Pixmap': 'fem-shell-thickness',
-                          'MenuText': QtCore.QT_TRANSLATE_NOOP("Fem_ShellThickness", "FEM Shell Plate Thickness Definition ..."),
-                          'Accel': "C, S",
-                          'ToolTip': QtCore.QT_TRANSLATE_NOOP("Fem_ShellThickness", "Creates a FEM Shell Thickness")}
-        self.is_active = 'with_analysis'
+class _FemSolverZ88():
+    """The Fem::FemSolver's Proxy python type, add solver specific properties
+    """
+    def __init__(self, obj):
+        self.Type = "FemSolverZ88"
+        self.Object = obj  # keep a ref to the DocObj for nonGui usage
+        obj.Proxy = self  # link between App::DocumentObject to  this object
 
-    def Activated(self):
-        FreeCAD.ActiveDocument.openTransaction("Create FemShellThickness")
-        FreeCADGui.addModule("FemShellThickness")
-        FreeCADGui.doCommand("FemGui.getActiveAnalysis().Member = FemGui.getActiveAnalysis().Member + [FemShellThickness.makeFemShellThickness()]")
+        obj.addProperty("App::PropertyString", "SolverType", "Base", "Type of the solver", 1)  # the 1 set the property to ReadOnly
+        obj.SolverType = str(self.Type)
 
+        fem_prefs = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/Fem")
 
-if FreeCAD.GuiUp:
-    FreeCADGui.addCommand('Fem_ShellThickness', _CommandFemShellThickness())
+        obj.addProperty("App::PropertyPath", "WorkingDir", "Fem", "Working directory for calculations")
+        obj.WorkingDir = fem_prefs.GetString("WorkingDir", "")
+
+        obj.addProperty("App::PropertyEnumeration", "AnalysisType", "Fem", "Type of the analysis")
+        obj.AnalysisType = FemToolsZ88.FemToolsZ88.known_analysis_types
+        analysis_type = fem_prefs.GetInt("AnalysisType", 0)
+        obj.AnalysisType = FemToolsZ88.FemToolsZ88.known_analysis_types[analysis_type]
+
+    def execute(self, obj):
+        return
+
+    def __getstate__(self):
+        return self.Type
+
+    def __setstate__(self, state):
+        if state:
+            self.Type = state

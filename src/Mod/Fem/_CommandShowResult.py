@@ -20,12 +20,11 @@
 #*                                                                         *
 #***************************************************************************
 
-__title__ = "Command Quick Analysis"
+__title__ = "Command Show Result"
 __author__ = "Juergen Riegel"
 __url__ = "http://www.freecadweb.org"
 
 import FreeCAD
-from FemTools import FemTools
 from FemCommands import FemCommands
 
 if FreeCAD.GuiUp:
@@ -33,42 +32,41 @@ if FreeCAD.GuiUp:
     from PySide import QtCore, QtGui
 
 
-class _CommandQuickAnalysis(FemCommands):
+class _CommandShowResult(FemCommands):
+    "the Fem show reslult command definition"
     def __init__(self):
-        super(_CommandQuickAnalysis, self).__init__()
-        self.resources = {'Pixmap': 'fem-quick-analysis',
-                          'MenuText': QtCore.QT_TRANSLATE_NOOP("Fem_Quick_Analysis", "Run CalculiX ccx"),
-                          'Accel': "R, C",
-                          'ToolTip': QtCore.QT_TRANSLATE_NOOP("Fem_Quick_Analysis", "Write .inp file and run CalculiX ccx")}
-        self.is_active = 'with_solver'
+        super(_CommandShowResult, self).__init__()
+        self.resources = {'Pixmap': 'fem-result',
+                          'MenuText': QtCore.QT_TRANSLATE_NOOP("Fem_ShowResult", "Show result"),
+                          'Accel': "S, R",
+                          'ToolTip': QtCore.QT_TRANSLATE_NOOP("Fem_ShowResult", "Shows and visualizes selected result data")}
+        self.is_active = 'with_results'
 
     def Activated(self):
-        def load_results(ret_code):
-            if ret_code == 0:
-                self.fea.load_results()
-                self.show_results_on_mesh()
-                self.hide_parts_constraints_show_meshes()
+        self.result_object = get_results_object(FreeCADGui.Selection.getSelection())
 
-            else:
-                print ("CalculiX failed ccx finished with error {}".format(ret_code))
-
-        self.fea = FemTools()
-        self.fea.reset_all()
-        message = self.fea.check_prerequisites()
-        if message:
-            QtGui.QMessageBox.critical(None, "Missing prerequisite", message)
+        if not self.result_object:
+            QtGui.QMessageBox.critical(None, "Missing prerequisite", "No result found in active Analysis")
             return
-        self.fea.finished.connect(load_results)
-        QtCore.QThreadPool.globalInstance().start(self.fea)
 
-    def show_results_on_mesh(self):
-        #FIXME proprer mesh refreshing as per FreeCAD.FEM_dialog settings required
-        # or confirmation that it's safe to call restore_result_dialog
-        #FIXME if an analysis has multiple results (frequence) the first result object found is restored
-        import _TaskPanelResultControl
-        tp = _TaskPanelResultControl._TaskPanelResultControl()
-        tp.restore_result_dialog()
+        self.hide_parts_constraints_show_meshes()
 
+        import _TaskPanelShowResult
+        taskd = _TaskPanelShowResult._TaskPanelShowResult()
+        FreeCADGui.Control.showDialog(taskd)
+
+
+#Code duplidation - to be removed after migration to FemTools
+def get_results_object(sel):
+    import FemGui
+    if (len(sel) == 1):
+        if sel[0].isDerivedFrom("Fem::FemResultObject"):
+            return sel[0]
+
+    for i in FemGui.getActiveAnalysis().Member:
+        if(i.isDerivedFrom("Fem::FemResultObject")):
+            return i
+    return None
 
 if FreeCAD.GuiUp:
-    FreeCADGui.addCommand('Fem_Quick_Analysis', _CommandQuickAnalysis())
+    FreeCADGui.addCommand('Fem_ShowResult', _CommandShowResult())

@@ -20,34 +20,55 @@
 # *                                                                         *
 # ***************************************************************************
 
-__title__ = "_CommandFemSolverCalculix"
+__title__ = "_FemViewProviderSolverZ88"
 __author__ = "Bernd Hahnebach"
 __url__ = "http://www.freecadweb.org"
 
 
 import FreeCAD
-from FemCommands import FemCommands
-
-if FreeCAD.GuiUp:
-    import FreeCADGui
-    from PySide import QtCore
+import FreeCADGui
+import FemGui
 
 
-class _CommandFemSolverCalculix(FemCommands):
-    "The Fem_SolverCalculix command definition"
-    def __init__(self):
-        super(_CommandFemSolverCalculix, self).__init__()
-        self.resources = {'Pixmap': 'fem-solver',
-                          'MenuText': QtCore.QT_TRANSLATE_NOOP("Fem_SolverCalculix", "Create FEM Solver CalculiX ..."),
-                          'Accel': "S, C",
-                          'ToolTip': QtCore.QT_TRANSLATE_NOOP("Fem_SolverCalculix", "Creates FEM Solver CalculiX")}
-        self.is_active = 'with_analysis_without_solver'
+class _ViewProviderFemSolverZ88:
+    "A View Provider for the FemSolverZ88 object"
+    def __init__(self, vobj):
+        vobj.Proxy = self
 
-    def Activated(self):
-        FreeCAD.ActiveDocument.openTransaction("Create SolverCalculix")
-        FreeCADGui.addModule("FemSolverCalculix")
-        FreeCADGui.doCommand("FemGui.getActiveAnalysis().Member = FemGui.getActiveAnalysis().Member + [FemSolverCalculix.makeFemSolverCalculix()]")
+    def getIcon(self):
+        return ":/icons/fem-solver.svg"
 
+    def attach(self, vobj):
+        self.ViewObject = vobj
+        self.Object = vobj.Object
 
-if FreeCAD.GuiUp:
-    FreeCADGui.addCommand('Fem_SolverCalculix', _CommandFemSolverCalculix())
+    def updateData(self, obj, prop):
+        return
+
+    def onChanged(self, vobj, prop):
+        return
+
+    def doubleClicked(self, vobj):
+        doc = FreeCADGui.getDocument(vobj.Object.Document)
+        if not doc.getInEdit():
+            # may be go the other way around and just activate the analysis the user has doubleClicked on ?!
+            if FemGui.getActiveAnalysis() is not None:
+                if FemGui.getActiveAnalysis().Document is FreeCAD.ActiveDocument:
+                    if self.Object in FemGui.getActiveAnalysis().Member:
+                        FreeCAD.Console.PrintError('Not yet supported, use property editor and "run analysis" button!\n')
+                        # doc.setEdit(vobj.Object.Name)
+                    else:
+                        FreeCAD.Console.PrintError('Activate the analysis this solver belongs to!\n')
+                else:
+                    FreeCAD.Console.PrintError('Active Analysis is not in active Document!\n')
+            else:
+                FreeCAD.Console.PrintError('No active Analysis found!\n')
+        else:
+            FreeCAD.Console.PrintError('Active Task Dialog found! Please close this one first!\n')
+        return True
+
+    def __getstate__(self):
+        return None
+
+    def __setstate__(self, state):
+        return None

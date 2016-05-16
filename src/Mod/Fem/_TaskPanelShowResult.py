@@ -26,7 +26,7 @@ __url__ = "http://www.freecadweb.org"
 
 
 import FreeCAD
-from FemTools import FemTools
+import FemTools
 
 if FreeCAD.GuiUp:
     import FreeCADGui
@@ -36,10 +36,10 @@ if FreeCAD.GuiUp:
     from PySide.QtGui import QApplication
 
 
-class _TaskPanelResultControl:
-    '''The control for the displacement post-processing'''
+class _TaskPanelShowResult:
+    '''The task panel for the post-processing'''
     def __init__(self):
-        self.form = FreeCADGui.PySideUic.loadUi(FreeCAD.getHomePath() + "Mod/Fem/TaskPanelShowDisplacement.ui")
+        self.form = FreeCADGui.PySideUic.loadUi(FreeCAD.getHomePath() + "Mod/Fem/TaskPanelShowResult.ui")
         self.fem_prefs = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/Fem")
         self.restore_result_settings_in_dialog = self.fem_prefs.GetBool("RestoreResultDialog", True)
 
@@ -100,7 +100,7 @@ class _TaskPanelResultControl:
     def restore_initial_result_dialog(self):
         FreeCAD.FEM_dialog = {"results_type": "None", "show_disp": False,
                               "disp_factor": 0, "disp_factor_max": 100}
-        fea = FemTools()
+        fea = FemTools.FemTools()
         fea.reset_mesh_color()
         fea.reset_mesh_deformation()
 
@@ -122,7 +122,7 @@ class _TaskPanelResultControl:
     def none_selected(self, state):
         FreeCAD.FEM_dialog["results_type"] = "None"
         self.set_result_stats("mm", 0.0, 0.0, 0.0)
-        fea = FemTools()
+        fea = FemTools.FemTools()
         fea.reset_mesh_color()
 
     def abs_displacement_selected(self, state):

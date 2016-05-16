@@ -20,35 +20,34 @@
 #*                                                                         *
 #***************************************************************************
 
-__title__ = "Command Mechanical Job Control"
+__title__ = "Command Purge Fem Results"
 __author__ = "Juergen Riegel"
 __url__ = "http://www.freecadweb.org"
 
 import FreeCAD
 from FemCommands import FemCommands
+import FemTools
 
 if FreeCAD.GuiUp:
     import FreeCADGui
     from PySide import QtCore
 
 
-class _CommandSolverJobControl(FemCommands):
-    "the Fem JobControl command definition"
+class _CommandPurgeResults(FemCommands):
+    # the Fem_PurgeResults command definition
     def __init__(self):
-        super(_CommandSolverJobControl, self).__init__()
-        self.resources = {'Pixmap': 'fem-new-analysis',
-                          'MenuText': QtCore.QT_TRANSLATE_NOOP("Fem_SolverJobControl", "Start solver job control"),
-                          'Accel': "S, C",
-                          'ToolTip': QtCore.QT_TRANSLATE_NOOP("Fem_SolverJobControl", "Dialog to start the calculation of the selected solver")}
-        self.is_active = 'with_solver'
+        super(_CommandPurgeResults, self).__init__()
+        self.resources = {'Pixmap': 'fem-purge-results',
+                          'MenuText': QtCore.QT_TRANSLATE_NOOP("Fem_PurgeResults", "Purge results"),
+                          'Accel': "S, S",
+                          'ToolTip': QtCore.QT_TRANSLATE_NOOP("Fem_PurgeResults", "Purges all results from active analysis")}
+        self.is_active = 'with_results'
 
     def Activated(self):
+        fea = FemTools.FemTools()
+        fea.reset_all()
 
-        self.hide_parts_constraints_show_meshes()
-
-        solver_obj = FreeCADGui.Selection.getSelection()[0]
-        FreeCADGui.ActiveDocument.setEdit(solver_obj, 0)
-
+        self.hide_meshes_show_parts_constraints()
 
 if FreeCAD.GuiUp:
-    FreeCADGui.addCommand('Fem_SolverJobControl', _CommandSolverJobControl())
+    FreeCADGui.addCommand('Fem_PurgeResults', _CommandPurgeResults())

@@ -13,45 +13,38 @@ INSTALL(
 
         convert2TetGen.py
 
-        SelectionObserverFem.py
+        FemSelectionObserver.py
+        FemMeshTools.py
+        FemTools.py
+        FemInputWriter.py
         TestFem.py
 
-        ccxDatReader.py
-        ccxFrdReader.py
-        ccxInpWriter.py
-        FemTools.py
-
         FemCommands.py
-        _CommandFemFromShape.py
-        _CommandPurgeFemResults.py
-        _CommandQuickAnalysis.py
+        _CommandMeshFromShape.py
+        _CommandPurgeResults.py
+        _CommandRunSolver.py
+        _CommandControlSolver.py
 
-        _CommandMechanicalShowResult.py
-        _TaskPanelResultControl.py
-
-        TaskPanelShowDisplacement.ui
-
-        _FemAnalysis.py
-        _ViewProviderFemAnalysis.py
+        _CommandShowResult.py
+        _TaskPanelShowResult.py
+        TaskPanelShowResult.ui
 
         FemAnalysis.py
-        _CommandNewMechanicalAnalysis.py
-
-        _CommandSolverJobControl.py
-        _TaskPanelFemSolverCalculix.py
-        TaskPanelFemSolverCalculix.ui
+        _FemAnalysis.py
+        _ViewProviderFemAnalysis.py
+        _CommandAnalysis.py
 
         FemBeamSection.py
         _FemBeamSection.py
         _ViewProviderFemBeamSection.py
-        _CommandFemBeamSection.py
+        _CommandBeamSection.py
         _TaskPanelFemBeamSection.py
         TaskPanelFemBeamSection.ui
 
         FemShellThickness.py
         _FemShellThickness.py
         _ViewProviderFemShellThickness.py
-        _CommandFemShellThickness.py
+        _CommandShellThickness.py
         _TaskPanelFemShellThickness.py
         TaskPanelFemShellThickness.ui
 
@@ -62,10 +55,29 @@ INSTALL(
         _TaskPanelMechanicalMaterial.py
         TaskPanelMechanicalMaterial.ui
 
+        # solver CalculiX ccx
+        ccxDatReader.py
+        ccxFrdReader.py
+        FemInputWriterCcx.py
+        FemToolsCcx.py
         FemSolverCalculix.py
         _FemSolverCalculix.py
         _ViewProviderFemSolverCalculix.py
-        _CommandFemSolverCalculix.py
+        _CommandSolverCalculix.py
+        _TaskPanelFemSolverCalculix.py
+        TaskPanelFemSolverCalculix.ui
+
+        # solver Z88
+        importZ88Mesh.py
+        z88DispReader.py
+        FemInputWriterZ88.py
+        FemToolsZ88.py
+        FemSolverZ88.py
+        _FemSolverZ88.py
+        _ViewProviderFemSolverZ88.py
+        _CommandSolverZ88.py
+        _TaskPanelFemSolverZ88.py
+        TaskPanelFemSolverZ88.ui
 
     DESTINATION
         Mod/Fem
