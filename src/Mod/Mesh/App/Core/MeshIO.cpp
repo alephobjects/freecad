@@ -236,6 +236,12 @@ bool MeshInput::LoadOBJ (std::istream &rstrIn)
                         "\\s+([-+]?[0-9]*)\\.?([0-9]+([eE][-+]?[0-9]+)?)"
                         "\\s+([-+]?[0-9]*)\\.?([0-9]+([eE][-+]?[0-9]+)?)"
                         "\\s+(\\d{1,3})\\s+(\\d{1,3})\\s+(\\d{1,3})\\s*$");
+    boost::regex rx_t("^v\\s+([-+]?[0-9]*)\\.?([0-9]+([eE][-+]?[0-9]+)?)"
+                        "\\s+([-+]?[0-9]*)\\.?([0-9]+([eE][-+]?[0-9]+)?)"
+                        "\\s+([-+]?[0-9]*)\\.?([0-9]+([eE][-+]?[0-9]+)?)"
+                        "\\s+([-+]?[0-9]*)\\.?([0-9]+([eE][-+]?[0-9]+)?)"
+                        "\\s+([-+]?[0-9]*)\\.?([0-9]+([eE][-+]?[0-9]+)?)"
+                        "\\s+([-+]?[0-9]*)\\.?([0-9]+([eE][-+]?[0-9]+)?)\\s*$");
     boost::regex rx_f3("^f\\s+([0-9]+)/?[0-9]*/?[0-9]*"
                          "\\s+([0-9]+)/?[0-9]*/?[0-9]*"
                          "\\s+([0-9]+)/?[0-9]*/?[0-9]*\\s*$");
@@ -282,6 +288,21 @@ bool MeshInput::LoadOBJ (std::istream &rstrIn)
             float r = std::min<int>(std::atof(what[10].first),255) / 255.0f;
             float g = std::min<int>(std::atof(what[11].first),255) / 255.0f;
             float b = std::min<int>(std::atof(what[12].first),255) / 255.0f;
+            meshPoints.push_back(MeshPoint(Base::Vector3f(fX, fY, fZ)));
+
+            App::Color c(r,g,b);
+            unsigned long prop = static_cast<uint32_t>(c.getPackedValue());
+            meshPoints.back().SetProperty(prop);
+            rgb_value = MeshIO::PER_VERTEX;
+        }
+        else if (boost::regex_match(line.c_str(), what, rx_t)) {
+            readvertices = true;
+            fX = (float)std::atof(what[1].first);
+            fY = (float)std::atof(what[4].first);
+            fZ = (float)std::atof(what[7].first);
+            float r = static_cast<float>(std::atof(what[10].first));
+            float g = static_cast<float>(std::atof(what[13].first));
+            float b = static_cast<float>(std::atof(what[16].first));
             meshPoints.push_back(MeshPoint(Base::Vector3f(fX, fY, fZ)));
 
             App::Color c(r,g,b);
@@ -344,9 +365,13 @@ bool MeshInput::LoadOBJ (std::istream &rstrIn)
 
     this->_rclMesh.Clear(); // remove all data before
 
-    MeshKernel tmp;
-    tmp.Adopt(meshPoints,meshFacets);
-    this->_rclMesh.Merge(tmp);
+    MeshCleanup meshCleanup(meshPoints,meshFacets);
+    if (_material)
+        meshCleanup.SetMaterial(_material);
+    meshCleanup.RemoveInvalids();
+    MeshPointFacetAdjacency meshAdj(meshPoints.size(),meshFacets);
+    meshAdj.SetFacetNeighbourhood();
+    this->_rclMesh.Adopt(meshPoints,meshFacets);
 
     return true;
 }
@@ -486,29 +511,14 @@ bool MeshInput::LoadOFF (std::istream &rstrIn)
     }
 
     this->_rclMesh.Clear(); // remove all data before
-    // Don't use Assign() because Merge() checks which points are really needed.
-    // This method sets already the correct neighbourhood
-    unsigned long ct = meshPoints.size();
-    std::list<unsigned long> removeFaces;
-    for (MeshFacetArray::_TConstIterator it = meshFacets.begin(); it != meshFacets.end(); ++it) {
-        bool ok = true;
-        for (int i=0;i<3;i++) {
-            if (it->_aulPoints[i] >= ct) {
-                Base::Console().Warning("Face index %lu out of range\n", it->_aulPoints[i]);
-                ok = false;
-            }
-        }
 
-        if (!ok)
-            removeFaces.push_front(it-meshFacets.begin());
-    }
-
-    for (std::list<unsigned long>::iterator it = removeFaces.begin(); it != removeFaces.end(); ++it)
-        meshFacets.erase(meshFacets.begin() + *it);
-
-    MeshKernel tmp;
-    tmp.Adopt(meshPoints,meshFacets);
-    this->_rclMesh.Merge(tmp);
+    MeshCleanup meshCleanup(meshPoints,meshFacets);
+    if (_material)
+        meshCleanup.SetMaterial(_material);
+    meshCleanup.RemoveInvalids();
+    MeshPointFacetAdjacency meshAdj(meshPoints.size(),meshFacets);
+    meshAdj.SetFacetNeighbourhood();
+    this->_rclMesh.Adopt(meshPoints,meshFacets);
 
     return true;
 }
@@ -978,16 +988,15 @@ bool MeshInput::LoadPLY (std::istream &inp)
     }
 
     this->_rclMesh.Clear(); // remove all data before
-#if 1
-    MeshCleanup(meshPoints,meshFacets).RemoveInvalids();
+
+    MeshCleanup meshCleanup(meshPoints,meshFacets);
+    if (_material)
+        meshCleanup.SetMaterial(_material);
+    meshCleanup.RemoveInvalids();
     MeshPointFacetAdjacency meshAdj(meshPoints.size(),meshFacets);
     meshAdj.SetFacetNeighbourhood();
     this->_rclMesh.Adopt(meshPoints,meshFacets);
-#else
-    MeshKernel tmp;
-    tmp.Adopt(meshPoints,meshFacets);
-    this->_rclMesh.Merge(tmp);
-#endif
+
     return true;
 }
 
@@ -1036,11 +1045,12 @@ bool MeshInput::LoadMeshNode (std::istream &rstrIn)
     }
 
     this->_rclMesh.Clear(); // remove all data before
-    // Don't use Assign() because Merge() checks which points are really needed.
-    // This method sets already the correct neighbourhood
-    MeshKernel tmp;
-    tmp.Adopt(meshPoints,meshFacets);
-    this->_rclMesh.Merge(tmp);
+
+    MeshCleanup meshCleanup(meshPoints,meshFacets);
+    meshCleanup.RemoveInvalids();
+    MeshPointFacetAdjacency meshAdj(meshPoints.size(),meshFacets);
+    meshAdj.SetFacetNeighbourhood();
+    this->_rclMesh.Adopt(meshPoints,meshFacets);
 
     return true;
 }
@@ -2519,11 +2529,17 @@ bool MeshOutput::SaveVRML (std::ostream &rstrOut) const
 MeshCleanup::MeshCleanup(MeshPointArray& p, MeshFacetArray& f)
   : pointArray(p)
   , facetArray(f)
+  , materialArray(0)
 {
 }
 
 MeshCleanup::~MeshCleanup()
 {
+}
+
+void MeshCleanup::SetMaterial(Material* mat)
+{
+    materialArray = mat;
 }
 
 void MeshCleanup::RemoveInvalids()
@@ -2562,6 +2578,21 @@ void MeshCleanup::RemoveInvalidFacets()
     std::size_t countInvalidFacets = std::count_if(facetArray.begin(), facetArray.end(),
                     std::bind2nd(MeshIsFlag<MeshFacet>(), MeshFacet::INVALID));
     if (countInvalidFacets > 0) {
+
+        // adjust the material array if needed
+        if (materialArray && materialArray->binding == MeshIO::PER_FACE &&
+            materialArray->diffuseColor.size() == facetArray.size()) {
+            std::vector<App::Color> colors;
+            colors.reserve(facetArray.size() - countInvalidFacets);
+            for (std::size_t index = 0; index < facetArray.size(); index++) {
+                if (facetArray[index].IsValid()) {
+                    colors.push_back(materialArray->diffuseColor[index]);
+                }
+            }
+
+            materialArray->diffuseColor.swap(colors);
+        }
+
         MeshFacetArray copy_facets(facetArray.size() - countInvalidFacets);
         // copy all valid facets to the new array
         std::remove_copy_if(facetArray.begin(), facetArray.end(), copy_facets.begin(),
@@ -2598,6 +2629,21 @@ void MeshCleanup::RemoveInvalidPoints()
 
         // delete point, number of valid points
         std::size_t validPoints = pointArray.size() - countInvalidPoints;
+
+        // adjust the material array if needed
+        if (materialArray && materialArray->binding == MeshIO::PER_VERTEX &&
+            materialArray->diffuseColor.size() == pointArray.size()) {
+            std::vector<App::Color> colors;
+            colors.reserve(validPoints);
+            for (std::size_t index = 0; index < pointArray.size(); index++) {
+                if (pointArray[index].IsValid()) {
+                    colors.push_back(materialArray->diffuseColor[index]);
+                }
+            }
+
+            materialArray->diffuseColor.swap(colors);
+        }
+
         MeshPointArray copy_points(validPoints);
         // copy all valid facets to the new array
         std::remove_copy_if(pointArray.begin(), pointArray.end(), copy_points.begin(),
