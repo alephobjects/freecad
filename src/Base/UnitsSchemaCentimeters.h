@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (c) 2009 Juergen Riegel  (FreeCAD@juergen-riegel.net>              *
+ *   Copyright (c) 2016 Yorik van Havre <yorik@uncreated.net>              *
  *                                                                         *
  *   This file is part of the FreeCAD CAx development system.              *
  *                                                                         *
@@ -21,8 +21,8 @@
  ***************************************************************************/
 
 
-#ifndef BASE_UNITSSCHEMAIMPERIAL1_H
-#define BASE_UNITSSCHEMAIMPERIAL1_H
+#ifndef BASE_UNITSSCHEMACENTIMETERS_H
+#define BASE_UNITSSCHEMACENTIMETERS_H
 
 
 #include <string>
@@ -30,49 +30,17 @@
 #include "UnitsSchema.h"
 
 namespace Base {
-    
 
-/** The schema class for the imperial unit system
- *  Here are the definiton for the imperial unit system.
- *  It also defines how the value/units get printed.
+/**
+ * The UnitSchema class
  */
-class UnitsSchemaImperial1: public UnitsSchema
+class UnitsSchemaCentimeters: public UnitsSchema
 {
 public:
-    //virtual void setSchemaUnits(void);
-    //virtual void resetSchemaUnits(void);
-	virtual QString schemaTranslate(Base::Quantity quant,double &factor,QString &unitString);
+    virtual QString schemaTranslate(Base::Quantity quant,double &factor,QString &unitString);
 
 };
-
-/** The schema class for the imperial unit system
- *  Here are the definiton for the imperial unit system.
- *  It also defines how the value/units get printed.
- */
-class UnitsSchemaImperialDecimal: public UnitsSchema
-{
-public:
-    //virtual void setSchemaUnits(void);
-    //virtual void resetSchemaUnits(void);
-	virtual QString schemaTranslate(Base::Quantity quant,double &factor,QString &unitString);
-
-};
-
-/** The schema class for the imperial unit system
- *  Here are the definiton for the imperial unit system.
- *  It also defines how the value/units get printed.
- */
-class UnitsSchemaImperialBuilding: public UnitsSchema
-{
-public:
-    //virtual void setSchemaUnits(void);
-    //virtual void resetSchemaUnits(void);
-	virtual QString schemaTranslate(Base::Quantity quant,double &factor,QString &unitString);
-
-};
-
 
 } // namespace Base
 
-
-#endif // BASE_UNITSSCHEMAIMPERIAL1_H
+#endif // BASE_UNITSSCHEMACENTIMETERS_H

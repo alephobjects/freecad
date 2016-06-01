@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (c) 2009 Juergen Riegel  (FreeCAD@juergen-riegel.net>              *
+ *   Copyright (c) 2016 Yorik van Havre <yorik@uncreated.net>              *
  *                                                                         *
  *   This file is part of the FreeCAD CAx development system.              *
  *                                                                         *
@@ -21,58 +21,39 @@
  ***************************************************************************/
 
 
-#ifndef BASE_UNITSSCHEMAIMPERIAL1_H
-#define BASE_UNITSSCHEMAIMPERIAL1_H
+#include "PreCompiled.h"
+#ifdef __GNUC__
+# include <unistd.h>
+#endif
 
-
-#include <string>
 #include <QString>
-#include "UnitsSchema.h"
+#include "Exception.h"
+#include "UnitsApi.h"
+#include "UnitsSchemaCentimeters.h"
+#include <cmath>
 
-namespace Base {
-    
+using namespace Base;
 
-/** The schema class for the imperial unit system
- *  Here are the definiton for the imperial unit system.
- *  It also defines how the value/units get printed.
- */
-class UnitsSchemaImperial1: public UnitsSchema
+
+QString UnitsSchemaCentimeters::schemaTranslate(Base::Quantity quant,double &factor,QString &unitString)
 {
-public:
-    //virtual void setSchemaUnits(void);
-    //virtual void resetSchemaUnits(void);
-	virtual QString schemaTranslate(Base::Quantity quant,double &factor,QString &unitString);
-
-};
-
-/** The schema class for the imperial unit system
- *  Here are the definiton for the imperial unit system.
- *  It also defines how the value/units get printed.
- */
-class UnitsSchemaImperialDecimal: public UnitsSchema
-{
-public:
-    //virtual void setSchemaUnits(void);
-    //virtual void resetSchemaUnits(void);
-	virtual QString schemaTranslate(Base::Quantity quant,double &factor,QString &unitString);
-
-};
-
-/** The schema class for the imperial unit system
- *  Here are the definiton for the imperial unit system.
- *  It also defines how the value/units get printed.
- */
-class UnitsSchemaImperialBuilding: public UnitsSchema
-{
-public:
-    //virtual void setSchemaUnits(void);
-    //virtual void resetSchemaUnits(void);
-	virtual QString schemaTranslate(Base::Quantity quant,double &factor,QString &unitString);
-
-};
-
-
-} // namespace Base
-
-
-#endif // BASE_UNITSSCHEMAIMPERIAL1_H
+    Unit unit = quant.getUnit();
+    if(unit == Unit::Length){
+        // all length units in centimeters
+        unitString = QString::fromLatin1("cm");
+        factor = 10.0;
+    }else if (unit == Unit::Area){
+        // all area units in square meters
+        unitString = QString::fromLatin1("m^2");
+        factor = 1000000.0;
+    }else if (unit == Unit::Volume){
+        // all area units in cubic meters
+        unitString = QString::fromLatin1("m^3");
+        factor = 1000000000.0;
+    }else{
+        // default action for all cases without special treatment:
+        unitString = quant.getUnit().getString();
+        factor = 1.0;
+    }
+    return QString::fromUtf8("%L1 %2").arg(quant.getValue() / factor).arg(unitString);
+}
