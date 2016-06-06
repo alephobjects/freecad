@@ -42,7 +42,7 @@ class FemToolsCcx(FemTools.FemTools):
     #  @param test_mode - True indicates that no real calculations will take place, so ccx bianry is not required. Used by test module.
     #  "__init__" tries to use current active analysis in analysis is left empty.
     #  Rises exception if analysis is not set and there is no active analysis
-    def __init__(self, analysis=None, test_mode=False):
+    def __init__(self, analysis=None, solver=None, test_mode=False):
         QtCore.QRunnable.__init__(self)
         QtCore.QObject.__init__(self)
         if analysis:
@@ -53,6 +53,12 @@ class FemToolsCcx(FemTools.FemTools):
         else:
             import FemGui
             self.analysis = FemGui.getActiveAnalysis()
+        if solver:
+            ## @var solver
+            #  solver of the analysis. Used to store the active solver and analysis parameters
+            self.solver = solver
+        else:
+            self.solver = None
         if self.analysis:
             self.update_objects()
             ## @var base_name
@@ -81,7 +87,8 @@ class FemToolsCcx(FemTools.FemTools):
         import sys
         self.inp_file_name = ""
         try:
-            inp_writer = iw.FemInputWriterCcx(self.analysis, self.mesh, self.materials,
+            inp_writer = iw.FemInputWriterCcx(self.analysis, self.solver,
+                                              self.mesh, self.materials,
                                               self.fixed_constraints,
                                               self.force_constraints, self.pressure_constraints,
                                               self.displacement_constraints,
