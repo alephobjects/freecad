@@ -44,7 +44,19 @@ class _Precast(ArchComponent.Component):
         obj.addProperty("App::PropertyDistance","Height","Arch","The height of this element")
         obj.addProperty("App::PropertyLinkList","Armatures","Arch","Armatures contained in this element")
         obj.addProperty("App::PropertyVectorList","Nodes","Arch","The structural nodes of this element")
-        self.Type = "Structure"
+        self.Type = "Precast"
+        obj.Role = ["Beam","Column","Panel","Slab"]
+        
+    def getProfile(self,obj,noplacement=True):
+        return []
+        
+    def getExtrusionVector(self,obj,noplacement=True):
+        return FreeCAD.Vector()
+        
+    def execute(self,obj):
+        
+        if self.clone(obj):
+            return
 
 
 class _PrecastBeam(_Precast):
@@ -57,9 +69,13 @@ class _PrecastBeam(_Precast):
         obj.addProperty("App::PropertyDistance","Chamfer","Arch","The size of the chamfer of this element")
         obj.addProperty("App::PropertyDistance","DentLength","Arch","The dent length of this element")
         obj.addProperty("App::PropertyDistance","DentHeight","Arch","The dent height of this element")
+        obj.addProperty("App::PropertyStringList","Dents","Arch","The dents of this element")
         obj.Role = ["Beam"]
 
     def execute(self,obj):
+        
+        if self.clone(obj):
+            return
 
         pl = obj.Placement
         length = obj.Length.Value
@@ -68,6 +84,7 @@ class _PrecastBeam(_Precast):
         chamfer = obj.Chamfer.Value
         dentlength = obj.DentLength.Value
         dentheight = obj.DentHeight.Value
+        dents = obj.Dents
     
         if (length == 0) or (width == 0) or (height == 0):
             return
@@ -108,7 +125,41 @@ class _PrecastBeam(_Precast):
             d2.translate(Vector(length-dentlength,0,0))
             shape = shape.cut(d1)
             shape = shape.cut(d2)
-            
+        for dent in dents:
+            dent = dent.split(";")
+            if len(dent) == 7:
+                dentlength = float(dent[0])
+                dentwidth = float(dent[1])
+                dentheight = float(dent[2])
+                dentslant = float(dent[3])
+                dentchamfer = chamfer
+                dentlevel = float(dent[4])
+                dentrotation = float(dent[5])
+                dentoffset = float(dent[6])
+                if (dentlength == 0) or (dentwidth == 0) or (dentheight == 0):
+                    continue
+                if dentslant >= dentheight:
+                    continue
+                p = []
+                p.append(Vector(0-dentchamfer,0,0))
+                p.append(Vector(dentlength,0,dentslant))
+                p.append(Vector(dentlength,0,dentheight))
+                p.append(Vector(0-dentchamfer,0,dentheight))
+                p.append(p[0])
+                p = Part.makePolygon(p)
+                f = Part.Face(p)
+                dentshape = f.extrude(Vector(0,dentwidth,0))
+                dentshape.rotate(Vector(0,0,0),Vector(0,0,1),dentrotation)
+                if dentrotation == 0:
+                    dentshape.translate(Vector(length,dentoffset,0))
+                elif dentrotation == 90:
+                    dentshape.translate(Vector(length-dentoffset,width,0))
+                elif dentrotation == 180:
+                    dentshape.translate(Vector(0,width-dentoffset,0))
+                elif dentrotation == 270:
+                    dentshape.translate(Vector(dentoffset,0,0))
+                dentshape.translate(Vector(0,0,dentlevel))
+                shape = shape.fuse(dentshape)
         shape = self.processSubShapes(obj,shape,pl)
         self.applyShape(obj,shape,pl)
 
@@ -125,6 +176,9 @@ class _PrecastIbeam(_Precast):
         obj.Role = ["Beam"]
 
     def execute(self,obj):
+        
+        if self.clone(obj):
+            return
 
         pl = obj.Placement
         length = obj.Length.Value
@@ -177,6 +231,9 @@ class _PrecastPillar(_Precast):
         obj.Role = ["Column"]
 
     def execute(self,obj):
+        
+        if self.clone(obj):
+            return
   
         pl = obj.Placement
         length = obj.Length.Value
@@ -293,6 +350,9 @@ class _PrecastPanel(_Precast):
         obj.Role = ["Plate"]
 
     def execute(self,obj):
+        
+        if self.clone(obj):
+            return
  
         pl = obj.Placement
         length = obj.Length.Value
@@ -389,6 +449,9 @@ class _PrecastSlab(_Precast):
         obj.SlabType = ["Champagne","Hat"]
 
     def execute(self,obj):
+        
+        if self.clone(obj):
+            return
 
         pl = obj.Placement
         slabtype = obj.SlabType
@@ -471,6 +534,9 @@ class _ViewProviderPrecast(ArchComponent.ViewProviderComponent):
 
     def getIcon(self):
         import Arch_rc
+        if hasattr(self,"Object"):
+            if self.Object.CloneOf:
+                return ":/icons/Arch_Structure_Clone.svg"
         return ":/icons/Arch_Structure_Tree.svg"
         
     def setEdit(self,vobj,mode):
@@ -479,7 +545,7 @@ class _ViewProviderPrecast(ArchComponent.ViewProviderComponent):
             taskd = ArchComponent.ComponentTaskPanel()
             taskd.obj = self.Object
             taskd.update()
-            if self.Object.Role == "Column":
+            if hasattr(self.Object,"Dents"):
                 self.dentd = _DentsTaskPanel()
                 self.dentd.form.show()
                 self.dentd.fillDents(self.Object.Dents)
@@ -492,8 +558,8 @@ class _ViewProviderPrecast(ArchComponent.ViewProviderComponent):
         import FreeCADGui
         if hasattr(self,"dentd"):
             self.Object.Dents = self.dentd.getValues()
+            del self.dentd
         FreeCADGui.Control.closeDialog()
-        del self.dentd
         return False
 
 
@@ -957,12 +1023,14 @@ class _DentsTaskPanel:
         rot = self.RotationAngles[self.valueRotation.currentIndex()]
         s = "Dent "+num+" :"+str(self.Length)+";"+str(self.Width)+";"+str(self.Height)+";"+str(self.Slant)+";"+str(self.Level)+";"+str(rot)+";"+str(self.Offset)
         self.listDents.addItem(s)
+        self.listDents.setCurrentRow(self.listDents.count()-1)
+        self.editDent()
         
     def removeDent(self):
         if self.listDents.currentItem():
             self.listDents.takeItem(self.listDents.currentRow())
         
-    def editDent(self,item):
+    def editDent(self,item=None):
         if self.listDents.currentItem():
             s = self.listDents.currentItem().text()
             s = s.split(":")[1]
@@ -997,7 +1065,7 @@ class _DentsTaskPanel:
         return l
         
 
-def makePrecast(precasttype,length=0,width=0,height=0,slabtype="",chamfer=0,dentlength=0,dentwidth=0,dentheight=0,dents=[],base=0,holenumber=0,holemajor=0,holeminor=0,holespacing=0,groovenumber=0,groovedepth=0,grooveheight=0,groovespacing=0):
+def makePrecast(precasttype=None,length=0,width=0,height=0,slabtype="",chamfer=0,dentlength=0,dentwidth=0,dentheight=0,dents=[],base=0,holenumber=0,holemajor=0,holeminor=0,holespacing=0,groovenumber=0,groovedepth=0,grooveheight=0,groovespacing=0):
     
     "creates one of the precast objects in the current document"
     
@@ -1008,6 +1076,7 @@ def makePrecast(precasttype,length=0,width=0,height=0,slabtype="",chamfer=0,dent
         obj.Width = width
         obj.Height = height
         obj.Chamfer = chamfer
+        obj.Dents = dents
         obj.DentLength = dentlength
         obj.DentHeight = dentheight
     elif precasttype == "Pillar":
@@ -1051,6 +1120,9 @@ def makePrecast(precasttype,length=0,width=0,height=0,slabtype="",chamfer=0,dent
         obj.Height = height
         obj.Chamfer = chamfer
         obj.BeamBase = base
+    else:
+        obj = FreeCAD.ActiveDocument.addObject("Part::FeaturePython","Precast")
+        _Precast(obj)
     if FreeCAD.GuiUp:
         _ViewProviderPrecast(obj.ViewObject)
     return obj

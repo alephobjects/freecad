@@ -352,6 +352,8 @@ class Component:
 
     def getAxis(self,obj):
         "Returns an open wire which is the axis of this component, if applicable"
+        if Draft.getType(obj) == "Precast":
+            return None
         if obj.Base:
             if obj.Base.isDerivedFrom("Part::Feature"):
                 if obj.Base.Shape:
@@ -378,6 +380,8 @@ class Component:
     def getProfiles(self,obj,noplacement=False):
         "Returns the base profile(s) of this component, if applicable"
         wires = []
+        if Draft.getType(obj) == "Precast":
+            return wires
         n,l,w,h = self.getDefaultValues(obj)
         if obj.Base:
             if obj.Base.isDerivedFrom("Part::Extrusion"):
@@ -477,6 +481,8 @@ class Component:
     def getExtrusionVector(self,obj,noplacement=False):
         "Returns an extrusion vector of this component, if applicable"
         n,l,w,h = self.getDefaultValues(obj)
+        if Draft.getType(obj) == "Precast":
+            return FreeCAD.Vector()
         if obj.Base:
             if obj.Base.isDerivedFrom("Part::Extrusion"):
                 return FreeCAD.Vector(obj.Base.Dir)
@@ -639,7 +645,7 @@ class Component:
                                         print "Arch: unable to cut object ",o.Name, " from ", obj.Name
         return base
 
-    def applyShape(self,obj,shape,placement):
+    def applyShape(self,obj,shape,placement,allowinvalid=False,allownosolid=False):
         "checks and cleans the given shape, and apply it to the object"
         if shape:
             if not shape.isNull():
@@ -656,8 +662,16 @@ class Component:
                             obj.Placement = placement
                     else:
                         FreeCAD.Console.PrintWarning(obj.Label + " " + translate("Arch","has no solid")+"\n")
+                        if allownosolid:
+                            obj.Shape = shape
+                            if not placement.isNull():
+                                obj.Placement = placement
                 else:
                     FreeCAD.Console.PrintWarning(obj.Label + " " + translate("Arch","has an invalid shape")+"\n")
+                    if allowinvalid:
+                        obj.Shape = shape
+                        if not placement.isNull():
+                            obj.Placement = placement
             else:
                 FreeCAD.Console.PrintWarning(obj.Label + " " + translate("Arch","has a null shape")+"\n")
 

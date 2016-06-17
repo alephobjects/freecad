@@ -524,10 +524,10 @@ IODeviceIStreambuf::seekpos(std::streambuf::pos_type pos,
 
 // ---------------------------------------------------------
 
-// Buffering would make it very fast but it doesn't seem to write all data
-//#define PYSTREAM_BUFFERED
+#define PYSTREAM_BUFFERED
 
 // http://www.mr-edd.co.uk/blog/beginners_guide_streambuf
+// http://www.icce.rug.nl/documents/cplusplus/cplusplus24.html
 PyStreambuf::PyStreambuf(PyObject* o, std::size_t buf_size, std::size_t put_back)
     : inp(o)
     , put_back(std::max(put_back, std::size_t(1)))
@@ -538,16 +538,17 @@ PyStreambuf::PyStreambuf(PyObject* o, std::size_t buf_size, std::size_t put_back
     setg(end, end, end);
 #ifdef PYSTREAM_BUFFERED
     char *base = &buffer.front();
-    setp(base, base + buffer.size() - 1);
+    setp(base, base + buffer.size());
 #endif
 }
 
 PyStreambuf::~PyStreambuf()
 {
+    sync();
     Py_DECREF(inp);
 }
 
-std::streambuf::int_type PyStreambuf::underflow()
+PyStreambuf::int_type PyStreambuf::underflow()
 {
     if (gptr() < egptr()) {
         return traits_type::to_int_type(*gptr());
@@ -586,15 +587,15 @@ std::streambuf::int_type PyStreambuf::underflow()
     return traits_type::to_int_type(*gptr());
 }
 
-std::streambuf::int_type
-PyStreambuf::overflow(std::streambuf::int_type ch)
+PyStreambuf::int_type
+PyStreambuf::overflow(PyStreambuf::int_type ch)
 {
 #ifdef PYSTREAM_BUFFERED
+    sync();
     if (ch != traits_type::eof()) {
         *pptr() = ch;
         pbump(1);
-        if (flushBuffer())
-            return ch;
+        return ch;
     }
 
     return traits_type::eof();
@@ -621,7 +622,10 @@ PyStreambuf::overflow(std::streambuf::int_type ch)
 int PyStreambuf::sync()
 {
 #ifdef PYSTREAM_BUFFERED
-    return flushBuffer() ? 0 : -1;
+    if (pptr() > pbase()) {
+        flushBuffer();
+    }
+    return 0;
 #else
     return std::streambuf::sync();
 #endif
@@ -663,6 +667,50 @@ std::streamsize PyStreambuf::xsputn (const char* s, std::streamsize num)
 
     return num;
 #endif
+}
+
+PyStreambuf::pos_type
+PyStreambuf::seekoff(PyStreambuf::off_type offset, PyStreambuf::seekdir dir, PyStreambuf::openmode /*mode*/)
+{
+    int whence = 0;
+    switch (dir) {
+    case std::ios_base::beg:
+        whence = 0;
+        break;
+    case std::ios_base::cur:
+        whence = 1;
+        break;
+    case std::ios_base::end:
+        whence = 2;
+        break;
+    default:
+        return pos_type(off_type(-1));
+    }
+
+    try {
+        Py::Tuple arg(2);
+        arg.setItem(0, Py::Long(static_cast<long>(offset)));
+        arg.setItem(1, Py::Long(whence));
+        Py::Callable seek(Py::Object(inp).getAttr("seek"));
+        seek.apply(arg);
+
+        // get current position
+        Py::Tuple arg2;
+        Py::Callable tell(Py::Object(inp).getAttr("tell"));
+        Py::Long pos(tell.apply(arg2));
+        long cur_pos = static_cast<long>(pos);
+        return static_cast<pos_type>(cur_pos);
+    }
+    catch(Py::Exception& e) {
+        e.clear();
+        return pos_type(off_type(-1));
+    }
+}
+
+PyStreambuf::pos_type
+PyStreambuf::seekpos(PyStreambuf::pos_type offset, PyStreambuf::openmode mode)
+{
+    return seekoff(offset, std::ios::beg, mode);
 }
 
 // ---------------------------------------------------------
