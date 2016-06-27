@@ -47,24 +47,19 @@ using namespace Base;
 
 TYPESYSTEM_SOURCE(Path::Toolpath , Base::Persistence);
 
-Toolpath::Toolpath()
-{
+Toolpath::Toolpath() {
 }
 
-Toolpath::Toolpath(const Toolpath& otherPath)
-:vpcCommands(otherPath.vpcCommands.size())
-{
+Toolpath::Toolpath(const Toolpath& otherPath):vpcCommands(otherPath.vpcCommands.size()){
     operator=(otherPath);
     recalculate();
 }
 
-Toolpath::~Toolpath()
-{
+Toolpath::~Toolpath() {
     clear();
 }
 
-Toolpath &Toolpath::operator=(const Toolpath& otherPath)
-{
+Toolpath &Toolpath::operator=(const Toolpath& otherPath){
     clear();
     vpcCommands.resize(otherPath.vpcCommands.size());
     int i = 0;
@@ -74,23 +69,20 @@ Toolpath &Toolpath::operator=(const Toolpath& otherPath)
     return *this;
 }
 
-void Toolpath::clear(void) 
-{
+void Toolpath::clear(void) {
     for(std::vector<Command*>::iterator it = vpcCommands.begin();it!=vpcCommands.end();++it)
         delete ( *it );
     vpcCommands.clear();
     recalculate();
 }
 
-void Toolpath::addCommand(const Command &Cmd)
-{
+void Toolpath::addCommand(const Command &Cmd){
     Command *tmp = new Command(Cmd);
     vpcCommands.push_back(tmp);
     recalculate();
 }
 
-void Toolpath::insertCommand(const Command &Cmd, int pos)
-{
+void Toolpath::insertCommand(const Command &Cmd, int pos){
     if (pos == -1) {
         addCommand(Cmd);
     } else if (pos <= static_cast<int>(vpcCommands.size())) {
@@ -102,8 +94,7 @@ void Toolpath::insertCommand(const Command &Cmd, int pos)
     recalculate();
 }
 
-void Toolpath::deleteCommand(int pos)
-{
+void Toolpath::deleteCommand(int pos){
     if (pos == -1) {
         //delete(*vpcCommands.rbegin()); // causes crash
         vpcCommands.pop_back();
@@ -115,8 +106,7 @@ void Toolpath::deleteCommand(int pos)
     recalculate();
 }
 
-double Toolpath::getLength()
-{
+double Toolpath::getLength(){
     if(vpcCommands.size()==0)
         return 0;
     double l = 0;
@@ -141,8 +131,7 @@ double Toolpath::getLength()
     return l;
 }
 
-void Toolpath::setFromGCode(const std::string instr)
-{
+void Toolpath::setFromGCode(const std::string instr){
     clear();
     
     // remove comments
@@ -154,8 +143,7 @@ void Toolpath::setFromGCode(const std::string instr)
     std::string mode = "command";
     std::size_t found = str.find_first_of("(gGmM");
     int last = -1;
-    while (found!=std::string::npos)
-    {
+    while (found!=std::string::npos) {
         if (str[found] == '(') {
             // start of comment
             if ( (last > -1) && (mode == "command") ) {
@@ -201,8 +189,7 @@ void Toolpath::setFromGCode(const std::string instr)
     recalculate();
 }
 
-std::string Toolpath::toGCode(void) const
-{
+std::string Toolpath::toGCode(void) const {
     std::string result;
     for (std::vector<Command*>::const_iterator it=vpcCommands.begin();it!=vpcCommands.end();++it) {
         result += (*it)->toGCode();
@@ -211,18 +198,16 @@ std::string Toolpath::toGCode(void) const
     return result;
 }    
 
-void Toolpath::recalculate(void) // recalculates the path cache
-{
-    
+ // recalculates the path cache
+void Toolpath::recalculate(void) {
     if(vpcCommands.size()==0)
         return;
-        
     // TODO recalculate the KDL stuff. At the moment, this is unused.
 
     /*
     // delete the old and create a new one
     if(pcPath) 
-        delete (pcPath);
+        delete(pcPath);
         
     pcPath = new KDL::Path_Composite();
     
@@ -276,13 +261,11 @@ void Toolpath::recalculate(void) // recalculates the path cache
 
 // reimplemented from base class
 
-unsigned int Toolpath::getMemSize (void) const
-{
+unsigned int Toolpath::getMemSize (void) const {
     return toGCode().size();
 }
 
-void Toolpath::Save (Writer &writer) const
-{
+void Toolpath::Save (Writer &writer) const {
     if (writer.isForceXML()) {
         writer.Stream() << writer.ind() << "<Path count=\"" <<  getSize() <<"\">" << std::endl;
         writer.incInd();
@@ -296,15 +279,13 @@ void Toolpath::Save (Writer &writer) const
     }
 }
 
-void Toolpath::SaveDocFile (Base::Writer &writer) const
-{
+void Toolpath::SaveDocFile (Base::Writer &writer) const {
     if (toGCode().empty())
         return;
     writer.Stream() << toGCode();
 }
 
-void Toolpath::Restore(XMLReader &reader)
-{
+void Toolpath::Restore(XMLReader &reader) {
     reader.readElement("Path");
     std::string file (reader.getAttribute("file") );
 
@@ -314,19 +295,13 @@ void Toolpath::Restore(XMLReader &reader)
     }
 }
 
-void Toolpath::RestoreDocFile(Base::Reader &reader)
-{
+void Toolpath::RestoreDocFile(Base::Reader &reader) {
     std::string gcode;
     std::string line;
-    while (reader >> line) { 
+    while (reader >> line) {
         gcode += line;
         gcode += " ";
     }
     setFromGCode(gcode);
 
 }
-
-
-
-
- 

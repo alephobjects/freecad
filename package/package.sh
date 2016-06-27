@@ -66,6 +66,13 @@ if [[ "$BUILD_TARGET" = "debian_i386" || "$BUILD_TARGET" = "debian_amd64" ]]; th
 		-DCMAKE_INSTALL_INCLUDEDIR=/usr/include/freecad \
 		-DCMAKE_INSTALL_LIBDIR=/usr/lib/freecad/lib \
 		-DBUILD_FEM=OFF \
+		-DBUILD_FEM_NETGEN=OFF \
+		-DBUILD_FEM_VTK=OFF \
+		-DBUILD_JTREADER=OFF \
+		-DBUILD_MESH_PART=OFF \
+		-DBUILD_OPENSCAD=OFF \
+		-DBUILD_TEMPLATE=OFF \
+		-DBUILD_VR=OFF \
 		 ../..
 	if [ $? != 0 ]; then echo "Failed to configure FreeCAD"; exit 1; fi
 	$MAKE -j3
