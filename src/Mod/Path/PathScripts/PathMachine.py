@@ -75,7 +75,8 @@ class Machine:
         # need to filter this path out in post- only for visualization
         #gcode = 'G0 X' + str(obj.X.Value) + ' Y' + \
         #    str(obj.Y.Value) + ' Z' + str(obj.Z.Value)
-        gcode = '(' + str(obj.Label) + ')'
+        gcode = ""
+        gcode += '(' + str(obj.Label) + ')'
         obj.Path = Path.Path(gcode)
 
     def onChanged(self, obj, prop):
@@ -195,8 +196,7 @@ class _ViewProviderMachine:
         pass
 
     def setEdit(self, vobj, mode=0):  # optional
-        # this is executed when the object is double-clicked in the tree
-        pass
+        return True
 
     def unsetEdit(self, vobj, mode=0):  # optional
         # this is executed when the user cancels or terminates edit mode
