@@ -164,11 +164,8 @@ void CmdTechDrawNewPageDef::activated(int iMsg)
         Gui::WaitCursor wc;
         openCommand("Drawing create page");
         doCommand(Doc,"App.activeDocument().addObject('TechDraw::DrawPage','%s')",PageName.c_str());
-
-        // Create the Template Object to attach to the page
         doCommand(Doc,"App.activeDocument().addObject('TechDraw::DrawSVGTemplate','%s')",TemplateName.c_str());
 
-        //TODO: why is "Template" property set twice?
         doCommand(Doc,"App.activeDocument().%s.Template = '%s'",TemplateName.c_str(), templateFileName.toStdString().c_str());
         doCommand(Doc,"App.activeDocument().%s.Template = App.activeDocument().%s",PageName.c_str(),TemplateName.c_str());
 
@@ -307,16 +304,12 @@ void CmdTechDrawNewView::activated(int iMsg)
     Gui::WaitCursor wc;
     const std::vector<App::DocumentObject*> selectedProjections = getSelection().getObjectsOfType(TechDraw::DrawView::getClassTypeId());
 
-    float newX = 10.0;
-    float newY = 10.0;
     float newScale = 1.0;
     float newRotation = 0.0;
     Base::Vector3d newDirection(0.0, 0.0, 1.0);
     if (!selectedProjections.empty()) {
         const TechDraw::DrawView* const myView = dynamic_cast<TechDraw::DrawView*>(selectedProjections.front());
 
-        newX = myView->X.getValue();
-        newY = myView->Y.getValue();
         newScale = myView->Scale.getValue();
         newRotation = myView->Rotation.getValue();
 
@@ -335,8 +328,6 @@ void CmdTechDrawNewView::activated(int iMsg)
         doCommand(Doc,"App.activeDocument().addObject('TechDraw::DrawViewPart','%s')",FeatName.c_str());
         doCommand(Doc,"App.activeDocument().%s.Source = App.activeDocument().%s",FeatName.c_str(),(*it)->getNameInDocument());
         doCommand(Doc,"App.activeDocument().%s.Direction = (%e,%e,%e)",FeatName.c_str(), newDirection.x, newDirection.y, newDirection.z);
-        doCommand(Doc,"App.activeDocument().%s.X = %e",FeatName.c_str(), newX);
-        doCommand(Doc,"App.activeDocument().%s.Y = %e",FeatName.c_str(), newY);
         doCommand(Doc,"App.activeDocument().%s.Scale = %e",FeatName.c_str(), newScale);
         doCommand(Doc,"App.activeDocument().%s.Rotation = %e",FeatName.c_str(), newRotation);
         doCommand(Doc,"App.activeDocument().%s.addView(App.activeDocument().%s)",PageName.c_str(),FeatName.c_str());
@@ -390,10 +381,6 @@ void CmdTechDrawNewViewSection::activated(int iMsg)
         std::string FeatName = getUniqueObjectName("Section");
         doCommand(Doc,"App.activeDocument().addObject('TechDraw::DrawViewSection','%s')",FeatName.c_str());
         doCommand(Doc,"App.activeDocument().%s.Source = App.activeDocument().%s",FeatName.c_str(),(*it)->getNameInDocument());
-        doCommand(Doc,"App.activeDocument().%s.Direction = (0.0,0.0,1.0)",FeatName.c_str());
-        doCommand(Doc,"App.activeDocument().%s.X = 10.0",FeatName.c_str());
-        doCommand(Doc,"App.activeDocument().%s.Y = 10.0",FeatName.c_str());
-        doCommand(Doc,"App.activeDocument().%s.Scale = 1.0",FeatName.c_str());
         doCommand(Doc,"App.activeDocument().%s.addView(App.activeDocument().%s)",PageName.c_str(),FeatName.c_str());
     }
     updateActive();
@@ -446,9 +433,6 @@ void CmdTechDrawProjGroup::activated(int iMsg)
     std::string SourceName = (*shapes.begin())->getNameInDocument();
     doCommand(Doc,"App.activeDocument().addObject('TechDraw::DrawProjGroup','%s')",multiViewName.c_str());
     doCommand(Doc,"App.activeDocument().%s.Source = App.activeDocument().%s",multiViewName.c_str(),SourceName.c_str());
-    doCommand(Doc,"App.activeDocument().%s.X = %f",     multiViewName.c_str(), page->getPageWidth() / 2);
-    doCommand(Doc,"App.activeDocument().%s.Y = %f",     multiViewName.c_str(), page->getPageHeight() / 2);
-    doCommand(Doc,"App.activeDocument().%s.Scale = 1.0",multiViewName.c_str());
 
     App::DocumentObject *docObj = getDocument()->getObject(multiViewName.c_str());
     TechDraw::DrawProjGroup *multiView = dynamic_cast<TechDraw::DrawProjGroup *>(docObj);
@@ -506,8 +490,6 @@ void CmdTechDrawAnnotation::activated(int iMsg)
     std::string FeatName = getUniqueObjectName("Annotation");
     openCommand("Create Annotation");
     doCommand(Doc,"App.activeDocument().addObject('TechDraw::DrawViewAnnotation','%s')",FeatName.c_str());
-    doCommand(Doc,"App.activeDocument().%s.X = 10.0",FeatName.c_str());
-    doCommand(Doc,"App.activeDocument().%s.Y = 10.0",FeatName.c_str());
     doCommand(Doc,"App.activeDocument().%s.addView(App.activeDocument().%s)",PageName.c_str(),FeatName.c_str());
     updateActive();
     commitCommand();
@@ -660,37 +642,32 @@ CmdTechDrawClipMinus::CmdTechDrawClipMinus()
 
 void CmdTechDrawClipMinus::activated(int iMsg)
 {
-   std::vector<Gui::SelectionObject> selection = getSelection().getSelectionEx();
-   if (selection.size() != 2) {
-       QMessageBox::warning(Gui::getMainWindow(), QObject::tr("Wrong selection"),
-                            QObject::tr("Select 1 DrawViewClip and 1 DrawView."));
-       return;
-    }
-
-    TechDraw::DrawViewClip* clip = 0;
-    TechDraw::DrawView* view = 0;
-    std::vector<Gui::SelectionObject>::iterator itSel = selection.begin();
-    for (; itSel != selection.end(); itSel++)  {
-        if ((*itSel).getObject()->isDerivedFrom(TechDraw::DrawViewClip::getClassTypeId())) {
-            clip = dynamic_cast<TechDraw::DrawViewClip*>((*itSel).getObject());
-        } else if ((*itSel).getObject()->isDerivedFrom(TechDraw::DrawView::getClassTypeId())) {
-            view = dynamic_cast<TechDraw::DrawView*>((*itSel).getObject());
-        }
-    }
-    if (!view) {
+    std::vector<App::DocumentObject*> dObj = getSelection().getObjectsOfType(TechDraw::DrawView::getClassTypeId());
+    if (dObj.empty()) {
         QMessageBox::warning(Gui::getMainWindow(), QObject::tr("Wrong selection"),
                              QObject::tr("Select exactly one Drawing View object."));
         return;
     }
-    if (!clip) {
-        QMessageBox::warning(Gui::getMainWindow(), QObject::tr("Wrong selection"),
-                             QObject::tr("Select exactly one Clip object."));
-        return;
+    TechDraw::DrawView* view = dynamic_cast<TechDraw::DrawView*>(dObj.front());
+
+    bool clipFound = false;
+    TechDraw::DrawPage* page = view->findParentPage();
+    const std::vector<App::DocumentObject*> pViews = page->Views.getValues();
+    TechDraw::DrawViewClip* clip = 0;
+    for (auto& v:pViews)     {
+        clip = nullptr;
+        if (v->isDerivedFrom(TechDraw::DrawViewClip::getClassTypeId())) {
+            clip = dynamic_cast<TechDraw::DrawViewClip*>(v);
+            if (clip->isViewInClip(view)) {
+                clipFound = true;
+                break;
+            }
+        }
     }
 
-    if (!clip->isViewInClip(view)) {
+    if (!clipFound) {
         QMessageBox::warning(Gui::getMainWindow(), QObject::tr("Wrong selection"),
-                             QObject::tr("Selected View is not in Clip."));
+                             QObject::tr("View does not belong to a Clip"));
         return;
     }
 
@@ -748,8 +725,6 @@ void CmdTechDrawSymbol::activated(int iMsg)
         doCommand(Doc,"svg = f.read()");
         doCommand(Doc,"f.close()");
         doCommand(Doc,"App.activeDocument().addObject('TechDraw::DrawViewSymbol','%s')",FeatName.c_str());
-        doCommand(Doc,"App.activeDocument().%s.X = 10.0",FeatName.c_str());
-        doCommand(Doc,"App.activeDocument().%s.Y = 10.0",FeatName.c_str());
         doCommand(Doc,"App.activeDocument().%s.Symbol = svg",FeatName.c_str());
         doCommand(Doc,"App.activeDocument().%s.addView(App.activeDocument().%s)",PageName.c_str(),FeatName.c_str());
         updateActive();

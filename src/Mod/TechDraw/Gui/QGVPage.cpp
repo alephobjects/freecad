@@ -28,7 +28,6 @@
 # include <QFileInfo>
 # include <QFileDialog>
 # include <QGLWidget>
-//# include <QGraphicsScene>
 # include <QGraphicsEffect>
 # include <QMouseEvent>
 # include <QPainter>
@@ -61,7 +60,9 @@
 
 
 #include "QGIDrawingTemplate.h"
+#include "QGITemplate.h"
 #include "QGISVGTemplate.h"
+#include "TemplateTextField.h"
 #include "QGIViewCollection.h"
 #include "QGIViewDimension.h"
 #include "QGIProjGroup.h"
@@ -71,6 +72,7 @@
 #include "QGIViewSymbol.h"
 #include "QGIViewClip.h"
 #include "QGIViewSpreadsheet.h"
+#include "QGIFace.h"
 
 #include "ZVALUE.h"
 #include "ViewProviderPage.h"
@@ -78,13 +80,11 @@
 
 using namespace TechDrawGui;
 
-QGVPage::QGVPage(ViewProviderPage *vp, QGraphicsScene& s, QWidget *parent)
+QGVPage::QGVPage(ViewProviderPage *vp, QGraphicsScene* s, QWidget *parent)
     : QGraphicsView(parent)
     , pageTemplate(0)
     , m_renderer(Native)
     , drawBkg(true)
-    , m_backgroundItem(0)
-    , m_outlineItem(0)
     , pageGui(0)
 {
     assert(vp);
@@ -92,7 +92,7 @@ QGVPage::QGVPage(ViewProviderPage *vp, QGraphicsScene& s, QWidget *parent)
     const char* name = vp->getPageObject()->getNameInDocument();
     setObjectName(QString::fromLocal8Bit(name));
 
-    setScene(&s);
+    setScene(s);
     //setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
     setCacheMode(QGraphicsView::CacheBackground);
     setTransformationAnchor(AnchorUnderMouse);
@@ -101,11 +101,6 @@ QGVPage::QGVPage(ViewProviderPage *vp, QGraphicsScene& s, QWidget *parent)
     setCursor(QCursor(Qt::ArrowCursor));
     setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
 
-    m_backgroundItem = new QGraphicsRectItem();
-    m_backgroundItem->setCacheMode(QGraphicsItem::NoCache);
-    m_backgroundItem->setZValue(ZVALUE::BACKGROUND);
-//     scene()->addItem(m_backgroundItem); // TODO IF SEGFAULTS WITH DRAW ENABLE THIS (REDRAWS ARE SLOWER :s)
-
     bkgBrush = new QBrush(QColor::fromRgb(70,70,70));
 
     resetCachedContent();
@@ -113,7 +108,7 @@ QGVPage::QGVPage(ViewProviderPage *vp, QGraphicsScene& s, QWidget *parent)
 QGVPage::~QGVPage()
 {
     delete bkgBrush;
-    delete m_backgroundItem;
+
 }
 
 void QGVPage::drawBackground(QPainter *p, const QRectF &)
@@ -380,35 +375,6 @@ QGIView * QGVPage::findParent(QGIView *view) const
     return 0;
 }
 
-void QGVPage::setPageFeature(TechDraw::DrawPage *page)
-{
-    //redundant
-#if 0
-    // TODO verify if the pointer should even be used. Not really safe
-    pageFeat = page;
-
-    float pageWidth  = pageGui->getPageObject()->getPageWidth();
-    float pageHeight = pageGui->getPageObject()->getPageHeight();
-
-    QRectF paperRect(0, -pageHeight, pageWidth, pageHeight);
-
-    QBrush brush(Qt::white);
-
-    m_backgroundItem->setBrush(brush);
-    m_backgroundItem->setRect(paperRect);
-
-    QGraphicsDropShadowEffect *shadow = new QGraphicsDropShadowEffect();
-    shadow->setBlurRadius(10.0);
-    shadow->setColor(Qt::white);
-    shadow->setOffset(0,0);
-    m_backgroundItem->setGraphicsEffect(shadow);
-
-    QRectF myRect = paperRect;
-    myRect.adjust(-20,-20,20,20);
-    setSceneRect(myRect);
-#endif
-}
-
 void QGVPage::setPageTemplate(TechDraw::DrawTemplate *obj)
 {
     // Remove currently set background template
@@ -416,11 +382,9 @@ void QGVPage::setPageTemplate(TechDraw::DrawTemplate *obj)
     removeTemplate();
 
     if(obj->isDerivedFrom(TechDraw::DrawParametricTemplate::getClassTypeId())) {
-        //TechDraw::DrawParametricTemplate *dwgTemplate = static_cast<TechDraw::DrawParametricTemplate *>(obj);
         QGIDrawingTemplate *qTempItem = new QGIDrawingTemplate(scene());
         pageTemplate = qTempItem;
     } else if(obj->isDerivedFrom(TechDraw::DrawSVGTemplate::getClassTypeId())) {
-        //TechDraw::DrawSVGTemplate *dwgTemplate = static_cast<TechDraw::DrawSVGTemplate *>(obj);
         QGISVGTemplate *qTempItem = new QGISVGTemplate(scene(),this);
         pageTemplate = qTempItem;
     }
@@ -463,62 +427,49 @@ void QGVPage::setHighQualityAntialiasing(bool highQualityAntialiasing)
 #endif
 }
 
-void QGVPage::setViewBackground(bool enable)
+void QGVPage::toggleMarkers(bool enable)
 {
-    if (!m_backgroundItem)
-        return;
-
-    m_backgroundItem->setVisible(enable);
-}
-
-void QGVPage::setViewOutline(bool enable)
-{
-    if (!m_outlineItem)
-        return;
-
-    m_outlineItem->setVisible(enable);
-}
-
-void QGVPage::toggleEdit(bool enable)
-{
-// TODO: needs fiddling to handle items that don't inherit QGIViewPart: Annotation, Symbol, Templates, Edges, Faces, Vertices,...
     QList<QGraphicsItem*> list = scene()->items();
-
     for (QList<QGraphicsItem*>::iterator it = list.begin(); it != list.end(); ++it) {
         QGIView *itemView = dynamic_cast<QGIView *>(*it);
         if(itemView) {
-            QGIViewPart *viewPart = dynamic_cast<QGIViewPart *>(*it);
             itemView->setSelected(false);
+            itemView->toggleBorder(enable);
+            QGIViewPart *viewPart = dynamic_cast<QGIViewPart *>(*it);
             if(viewPart) {
-                viewPart->toggleCache(enable);
-                viewPart->toggleCosmeticLines(enable);
                 viewPart->toggleVertices(enable);
-                viewPart->toggleBorder(enable);
-                setViewBackground(enable);
-            } else {
-                itemView->toggleBorder(enable);
             }
-            //itemView->updateView(true);
         }
-
-        int textItemType = QGraphicsItem::UserType + 160;
-        QGraphicsItem*item = dynamic_cast<QGraphicsItem*>(*it);
-        if(item) {
-            //item->setCacheMode((enable) ? QGraphicsItem::DeviceCoordinateCache : QGraphicsItem::NoCache);
-            item->setCacheMode((enable) ? QGraphicsItem::NoCache : QGraphicsItem::NoCache);
-            item->update();
-            if (item->type() == textItemType) {    //TODO: move this into SVGTemplate or TemplateTextField
+        QGISVGTemplate* itemTemplate = dynamic_cast<QGISVGTemplate*> (*it);
+        if (itemTemplate) {
+            std::vector<TemplateTextField *> textFields = itemTemplate->getTestFields();
+            for (auto& t:textFields) {
                 if (enable) {
-                    item->show();
+                    t->show();
                 } else {
-                    item->hide();
+                    t->hide();
                 }
             }
         }
     }
-    scene()->update();
-    update();
-    viewport()->repaint();
+}
+
+void QGVPage::toggleHatch(bool enable)
+{
+    QList<QGraphicsItem*> sceneItems = scene()->items();
+    for (auto& qgi:sceneItems) {
+        QGIViewPart* qgiPart = dynamic_cast<QGIViewPart *>(qgi);
+        if(qgiPart) {
+            QList<QGraphicsItem*> partChildren = qgiPart->childItems();
+            int faceItemType = QGraphicsItem::UserType + 104;
+            for (auto& c:partChildren) {
+                if (c->type() == faceItemType) {
+                    QGIFace* f = dynamic_cast<QGIFace*>(c);
+                    f->toggleSvg(enable);
+                }
+            }
+        }
+    }
 }
 
 void QGVPage::saveSvg(QString filename)
@@ -545,7 +496,7 @@ void QGVPage::saveSvg(QString filename)
     //      postprocess generated file to mult all font-size attrib by 2.835 to get pts?
     //      duplicate all textItems and only show the appropriate one for screen/print vs export?
 
-// TODO: Was    svgGen.setResolution(25.4000508);    // mm/inch??  docs say this is DPI
+// TODO: Was    svgGen.setResolution(25.4000508);    // mm/inch??  docs say this is DPI  //really "user space units/inch"?
     svgGen.setResolution(25);    // mm/inch??  docs say this is DPI
 
     //svgGen.setResolution(600);    // resulting page is ~12.5x9mm
@@ -555,8 +506,10 @@ void QGVPage::saveSvg(QString filename)
 
     Gui::Selection().clearSelection();
 
-    toggleEdit(false);             //fiddle cache, cosmetic lines, vertices, etc
+    toggleMarkers(false);             //fiddle cache, vertices, frames, etc
+    toggleHatch(false);
     scene()->update();
+    viewport()->repaint();
 
     Gui::Selection().clearSelection();
     QPainter p;
@@ -565,8 +518,10 @@ void QGVPage::saveSvg(QString filename)
     scene()->render(&p);
     p.end();
 
-    toggleEdit(true);
+    toggleMarkers(true);
+    toggleHatch(true);
     scene()->update();
+    viewport()->repaint();
 }
 
 

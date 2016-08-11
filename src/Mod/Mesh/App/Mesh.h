@@ -270,12 +270,13 @@ public:
     void flipNormals();
     void harmonizeNormals();
     void validateIndices();
-    void validateDeformations(float fMaxAngle);
-    void validateDegenerations();
+    void validateDeformations(float fMaxAngle, float fEps);
+    void validateDegenerations(float fEps);
     void removeDuplicatedPoints();
     void removeDuplicatedFacets();
     bool hasNonManifolds() const;
     void removeNonManifolds();
+    void removeNonManifoldPoints();
     bool hasSelfIntersections() const;
     void removeSelfIntersections();
     void removeSelfIntersections(const std::vector<unsigned long>&);
@@ -376,7 +377,7 @@ private:
     void deletedFacets(const std::vector<unsigned long>& remFacets);
     void updateMesh(const std::vector<unsigned long>&);
     void updateMesh();
-    void swapKernel(MeshCore::MeshKernel& m);
+    void swapKernel(MeshCore::MeshKernel& m, const std::vector<std::string>& g);
 
 private:
     Base::Matrix4D _Mtrx;

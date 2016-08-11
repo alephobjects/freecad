@@ -121,7 +121,7 @@ App::DocumentObjectExecReturn *DrawViewSection::execute(void)
 
     const Part::TopoShape &partTopo = static_cast<Part::Feature*>(link)->Shape.getShape();
 
-    if (partTopo._Shape.IsNull())
+    if (partTopo.getShape().IsNull())
         return new App::DocumentObjectExecReturn("Linked shape object is empty");
 
     gp_Pln pln = getSectionPlane();
@@ -159,12 +159,12 @@ App::DocumentObjectExecReturn *DrawViewSection::execute(void)
     pnts.push_back(Base::Vector3d(bb.MinX,bb.MaxY,bb.MaxZ));
     pnts.push_back(Base::Vector3d(bb.MaxX,bb.MaxY,bb.MaxZ));
 
-    double uMax = 0, vMax = 0, wMax;
+    double uMax = 0, vMax = 0, wMax = 0;
     for(std::vector<Base::Vector3d>::const_iterator it = pnts.begin(); it != pnts.end(); ++it) {
         // Project each bounding box point onto projection plane and find larges u,v values
 
         Base::Vector3d pnt = (*it);
-        pnt.ProjToPlane(plnPnt, plnNorm);
+        pnt.ProjectToPlane(plnPnt, plnNorm);
 
         uMax = std::max(uMax, std::abs(plnPnt[0] - pnt[0]));
         vMax = std::max(vMax, std::abs(plnPnt[1] - pnt[1]));
@@ -196,7 +196,7 @@ App::DocumentObjectExecReturn *DrawViewSection::execute(void)
     TopoDS_Shape prism = BRepPrimAPI_MakePrism(aProjFace, wMax * gp_Vec(pln.Axis().Direction()), 0, 1).Shape();
 
     // We need to copy the shape to not modify the BRepstructure
-    BRepBuilderAPI_Copy BuilderCopy(partTopo._Shape);
+    BRepBuilderAPI_Copy BuilderCopy(partTopo.getShape());
     TopoDS_Shape myShape = BuilderCopy.Shape();
 
     BRepAlgoAPI_Cut mkCut(myShape, prism);

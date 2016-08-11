@@ -33,6 +33,8 @@
 # include <TopoDS_Shape.hxx>
 # include <TopExp_Explorer.hxx>
 # include <Inventor/events/SoMouseButtonEvent.h>
+# include <Standard_Version.hxx>
+# include <TopoDS_TCompound.hxx>
 #endif
 
 #include <Base/Console.h>
@@ -349,9 +351,28 @@ CmdPartCommon::CmdPartCommon()
 void CmdPartCommon::activated(int iMsg)
 {
     std::vector<Gui::SelectionObject> Sel = getSelection().getSelectionEx(0, Part::Feature::getClassTypeId());
-    if (Sel.size() < 2) {
+
+    //test if selected object is a compound, and if it is, look how many children it has...
+    std::size_t numShapes = 0;
+    if (Sel.size() == 1){
+        numShapes = 1; //to be updated later in code, if
+        Gui::SelectionObject selobj = Sel[0];
+        if (selobj.getObject()->isDerivedFrom(Part::Feature::getClassTypeId())){
+            TopoDS_Shape sh = static_cast<Part::Feature*>(selobj.getObject())->Shape.getValue();
+            if (sh.ShapeType() == TopAbs_COMPOUND) {
+                numShapes = 0;
+                TopoDS_Iterator it(sh);
+                for (; it.More(); it.Next()) {
+                    ++numShapes;
+                }
+            }
+        }
+    } else {
+        numShapes = Sel.size();
+    }
+    if (numShapes < 2) {
         QMessageBox::warning(Gui::getMainWindow(), QObject::tr("Wrong selection"),
-            QObject::tr("Select two shapes or more, please."));
+            QObject::tr("Select two shapes or more, please. Or, select one compound containing two or more shapes to compute common between."));
         return;
     }
 
@@ -408,7 +429,7 @@ void CmdPartCommon::activated(int iMsg)
 
 bool CmdPartCommon::isActive(void)
 {
-    return getSelection().countObjectsOfType(Part::Feature::getClassTypeId())>=2;
+    return getSelection().countObjectsOfType(Part::Feature::getClassTypeId())>=1;
 }
 
 //===========================================================================
@@ -431,9 +452,28 @@ CmdPartFuse::CmdPartFuse()
 void CmdPartFuse::activated(int iMsg)
 {
     std::vector<Gui::SelectionObject> Sel = getSelection().getSelectionEx(0, Part::Feature::getClassTypeId());
-    if (Sel.size() < 2) {
+
+    //test if selected object is a compound, and if it is, look how many children it has...
+    std::size_t numShapes = 0;
+    if (Sel.size() == 1){
+        numShapes = 1; //to be updated later in code
+        Gui::SelectionObject selobj = Sel[0];
+        if (selobj.getObject()->isDerivedFrom(Part::Feature::getClassTypeId())){
+            TopoDS_Shape sh = static_cast<Part::Feature*>(selobj.getObject())->Shape.getValue();
+            if (sh.ShapeType() == TopAbs_COMPOUND) {
+                numShapes = 0;
+                TopoDS_Iterator it(sh);
+                for (; it.More(); it.Next()) {
+                    ++numShapes;
+                }
+            }
+        }
+    } else {
+        numShapes = Sel.size();
+    }
+    if (numShapes < 2) {
         QMessageBox::warning(Gui::getMainWindow(), QObject::tr("Wrong selection"),
-            QObject::tr("Select two shapes or more, please."));
+            QObject::tr("Select two shapes or more, please. Or, select one compound containing two or more shapes to be fused."));
         return;
     }
 
@@ -490,7 +530,7 @@ void CmdPartFuse::activated(int iMsg)
 
 bool CmdPartFuse::isActive(void)
 {
-    return getSelection().countObjectsOfType(Part::Feature::getClassTypeId())>=2;
+    return getSelection().countObjectsOfType(Part::Feature::getClassTypeId())>=1;
 }
 
 //===========================================================================
@@ -569,25 +609,25 @@ void CmdPartCompJoinFeatures::languageChange()
     Gui::Command* joinConnect = rcCmdMgr.getCommandByName("Part_JoinConnect");
     if (joinConnect) {
         QAction* cmd0 = a[0];
-        cmd0->setText(QApplication::translate("PartCompJoinFeatures", joinConnect->getMenuText()));
-        cmd0->setToolTip(QApplication::translate("Part_JoinConnect", joinConnect->getToolTipText()));
-        cmd0->setStatusTip(QApplication::translate("Part_JoinConnect", joinConnect->getStatusTip()));
+        cmd0->setText(QApplication::translate("Part_JoinFeatures", joinConnect->getMenuText()));
+        cmd0->setToolTip(QApplication::translate("Part_JoinFeatures", joinConnect->getToolTipText()));
+        cmd0->setStatusTip(QApplication::translate("Part_JoinFeatures", joinConnect->getStatusTip()));
     }
 
     Gui::Command* joinEmbed = rcCmdMgr.getCommandByName("Part_JoinEmbed");
     if (joinEmbed) {
         QAction* cmd1 = a[1];
-        cmd1->setText(QApplication::translate("PartCompJoinFeatures", joinEmbed->getMenuText()));
-        cmd1->setToolTip(QApplication::translate("Part_JoinEmbed", joinEmbed->getToolTipText()));
-        cmd1->setStatusTip(QApplication::translate("Part_JoinEmbed", joinEmbed->getStatusTip()));
+        cmd1->setText(QApplication::translate("Part_JoinFeatures", joinEmbed->getMenuText()));
+        cmd1->setToolTip(QApplication::translate("Part_JoinFeatures", joinEmbed->getToolTipText()));
+        cmd1->setStatusTip(QApplication::translate("Part_JoinFeatures", joinEmbed->getStatusTip()));
     }
 
     Gui::Command* joinCutout = rcCmdMgr.getCommandByName("Part_JoinCutout");
     if (joinCutout) {
         QAction* cmd2 = a[2];
-        cmd2->setText(QApplication::translate("PartCompJoinFeatures", joinCutout->getMenuText()));
-        cmd2->setToolTip(QApplication::translate("Part_JoinCutout", joinCutout->getToolTipText()));
-        cmd2->setStatusTip(QApplication::translate("Part_JoinCutout", joinCutout->getStatusTip()));
+        cmd2->setText(QApplication::translate("Part_JoinFeatures", joinCutout->getMenuText()));
+        cmd2->setToolTip(QApplication::translate("Part_JoinFeatures", joinCutout->getToolTipText()));
+        cmd2->setStatusTip(QApplication::translate("Part_JoinFeatures", joinCutout->getStatusTip()));
     }
 }
 
@@ -595,6 +635,116 @@ bool CmdPartCompJoinFeatures::isActive(void)
 {
     if (getActiveGuiDocument())
         return true;
+    else
+        return false;
+}
+
+//===========================================================================
+// Part_CompSplitFeatures (dropdown toolbar button for BooleanFragments, Slice)
+//===========================================================================
+
+DEF_STD_CMD_ACL(CmdPartCompSplitFeatures);
+
+CmdPartCompSplitFeatures::CmdPartCompSplitFeatures()
+  : Command("Part_CompSplitFeatures")
+{
+    sAppModule      = "Part";
+    sGroup          = QT_TR_NOOP("Part");
+    sMenuText       = QT_TR_NOOP("Split objects...");
+    sToolTipText    = QT_TR_NOOP("Shape splitting tools. Compsolid creation tools. OCC 6.9.0 or later is required.");
+    sWhatsThis      = "Part_CompSplitFeatures";
+    sStatusTip      = sToolTipText;
+}
+
+void CmdPartCompSplitFeatures::activated(int iMsg)
+{
+    Gui::CommandManager &rcCmdMgr = Gui::Application::Instance->commandManager();
+    if (iMsg==0)
+        rcCmdMgr.runCommandByName("Part_BooleanFragments");
+    else if (iMsg==1)
+        rcCmdMgr.runCommandByName("Part_Slice");
+    else if (iMsg==2)
+        rcCmdMgr.runCommandByName("Part_XOR");
+    else
+        return;
+
+    // Since the default icon is reset when enabing/disabling the command we have
+    // to explicitly set the icon of the used command.
+    Gui::ActionGroup* pcAction = qobject_cast<Gui::ActionGroup*>(_pcAction);
+    QList<QAction*> a = pcAction->actions();
+
+    assert(iMsg < a.size());
+    pcAction->setIcon(a[iMsg]->icon());
+}
+
+Gui::Action * CmdPartCompSplitFeatures::createAction(void)
+{
+    Gui::ActionGroup* pcAction = new Gui::ActionGroup(this, Gui::getMainWindow());
+    pcAction->setDropDownMenu(true);
+    applyCommandData(this->className(), pcAction);
+
+    QAction* cmd0 = pcAction->addAction(QString());
+    cmd0->setIcon(Gui::BitmapFactory().pixmap("Part_BooleanFragments"));
+    QAction* cmd1 = pcAction->addAction(QString());
+    cmd1->setIcon(Gui::BitmapFactory().pixmap("Part_Slice"));
+    QAction* cmd2 = pcAction->addAction(QString());
+    cmd2->setIcon(Gui::BitmapFactory().pixmap("Part_XOR"));
+
+    _pcAction = pcAction;
+    languageChange();
+
+    pcAction->setIcon(cmd0->icon());
+    int defaultId = 0;
+    pcAction->setProperty("defaultAction", QVariant(defaultId));
+
+    return pcAction;
+}
+
+void CmdPartCompSplitFeatures::languageChange()
+{
+    Command::languageChange();
+
+    if (!_pcAction)
+        return;
+
+    Gui::CommandManager &rcCmdMgr = Gui::Application::Instance->commandManager();
+
+    Gui::ActionGroup* pcAction = qobject_cast<Gui::ActionGroup*>(_pcAction);
+    QList<QAction*> a = pcAction->actions();
+
+    Gui::Command* splitBoolFragments = rcCmdMgr.getCommandByName("Part_BooleanFragments");
+    if (splitBoolFragments) {
+        QAction* cmd0 = a[0];
+        cmd0->setText(QApplication::translate("Part_SplitFeatures", splitBoolFragments->getMenuText()));
+        cmd0->setToolTip(QApplication::translate("Part_SplitFeatures", splitBoolFragments->getToolTipText()));
+        cmd0->setStatusTip(QApplication::translate("Part_SplitFeatures", splitBoolFragments->getStatusTip()));
+    }
+
+    Gui::Command* splitSlice = rcCmdMgr.getCommandByName("Part_Slice");
+    if (splitSlice) {
+        QAction* cmd1 = a[1];
+        cmd1->setText(QApplication::translate("Part_SplitFeatures", splitSlice->getMenuText()));
+        cmd1->setToolTip(QApplication::translate("Part_SplitFeatures", splitSlice->getToolTipText()));
+        cmd1->setStatusTip(QApplication::translate("Part_SplitFeatures", splitSlice->getStatusTip()));
+    }
+
+    Gui::Command* splitXOR = rcCmdMgr.getCommandByName("Part_XOR");
+    if (splitXOR) {
+        QAction* cmd2 = a[2];
+        cmd2->setText(QApplication::translate("Part_SplitFeatures", splitXOR->getMenuText()));
+        cmd2->setToolTip(QApplication::translate("Part_SplitFeatures", splitXOR->getToolTipText()));
+        cmd2->setStatusTip(QApplication::translate("Part_SplitFeatures", splitXOR->getStatusTip()));
+    }
+}
+
+bool CmdPartCompSplitFeatures::isActive(void)
+{
+    if (getActiveGuiDocument())
+#if OCC_VERSION_HEX < 0x060900
+        return false;
+#else
+        return true;
+#endif
     else
         return false;
 }
@@ -1611,9 +1761,9 @@ void CmdPartRuledSurface::activated(int iMsg)
         const Part::Feature* part1 = static_cast<const Part::Feature*>(result[0].getObject());
         const Part::Feature* part2 = static_cast<const Part::Feature*>(result[1].getObject());
         const Part::TopoShape& shape1 = part1->Shape.getValue();
-        curve1 = shape1._Shape;
+        curve1 = shape1.getShape();
         const Part::TopoShape& shape2 = part2->Shape.getValue();
-        curve2 = shape2._Shape;
+        curve2 = shape2.getShape();
         obj1 = part1->getNameInDocument();
         obj2 = part2->getNameInDocument();
 
@@ -1909,6 +2059,7 @@ void CreatePartCommands(void)
     rcCmdMgr.addCommand(new CmdPartCut());
     rcCmdMgr.addCommand(new CmdPartFuse());
     rcCmdMgr.addCommand(new CmdPartCompJoinFeatures());
+    rcCmdMgr.addCommand(new CmdPartCompSplitFeatures());
     rcCmdMgr.addCommand(new CmdPartCompound());
     rcCmdMgr.addCommand(new CmdPartSection());
     //rcCmdMgr.addCommand(new CmdPartBox2());

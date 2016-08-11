@@ -50,16 +50,15 @@
 
 #include "QGCustomBorder.h"
 #include "QGCustomLabel.h"
-
 #include "QGIView.h"
+#include "QGCustomBorder.h"
+#include "QGCustomLabel.h"
 #include "QGCustomClip.h"
 #include "QGIViewClip.h"
 
 #include <Mod/TechDraw/App/DrawViewClip.h>
 
 using namespace TechDrawGui;
-
-void _debugRect(char* text, QRectF r);
 
 QGIView::QGIView()
     :QGraphicsItemGroup(),
@@ -79,14 +78,13 @@ QGIView::QGIView()
     m_colCurrent = getNormalColor();
     m_pen.setColor(m_colCurrent);
 
+    //Border/Label styling
     m_font.setPointSize(5.0);     //scene units (mm), not points
-
     m_decorPen.setStyle(Qt::DashLine);
     m_decorPen.setWidth(0); // 0 => 1px "cosmetic pen"
 
     m_label = new QGCustomLabel();
     addToGroup(m_label);
-
     m_border = new QGCustomBorder();
     addToGroup(m_border);
 
@@ -299,11 +297,12 @@ void QGIView::draw()
 void QGIView::drawBorder()
 {
     if (!borderVisible) {
+         m_label->hide();
+         m_border->hide();
         return;
     }
 
     //double margin = 2.0;
-    prepareGeometryChange();
     m_label->hide();
     m_border->hide();
 
@@ -338,6 +337,7 @@ void QGIView::drawBorder()
                               displayArea.top(),
                               frameWidth,
                               frameHeight);
+    prepareGeometryChange();
     m_border->setRect(frameArea);
     m_border->setPos(0.,0.);
 
@@ -350,10 +350,6 @@ void QGIView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, Q
     QStyleOptionGraphicsItem myOption(*option);
     myOption.state &= ~QStyle::State_Selected;
 
-    if(!borderVisible){
-         m_label->hide();
-         m_border->hide();
-    }
     QGraphicsItemGroup::paint(painter, &myOption, widget);
 }
 
@@ -371,6 +367,27 @@ QRectF QGIView::customChildrenBoundingRect() {
         }
     }
     return result;
+}
+
+QRectF QGIView::boundingRect() const
+{
+    return m_border->rect().adjusted(-2.,-2.,2.,2.);     //allow for border line width  //TODO: fiddle brect if border off?
+}
+
+QGIView* QGIView::getQGIVByName(std::string name)
+{
+    QList<QGraphicsItem*> qgItems = scene()->items();
+    QList<QGraphicsItem*>::iterator it = qgItems.begin();
+    for (; it != qgItems.end(); it++) {
+        QGIView* qv = dynamic_cast<QGIView*>((*it));
+        if (qv) {
+            const char* qvName = qv->getViewName();
+            if(name.compare(qvName) == 0) {
+                return (qv);
+            }
+        }
+    }
+    return 0;
 }
 
 QColor QGIView::getNormalColor()
@@ -415,7 +432,7 @@ QString QGIView::getPrefFont()
     return QString::fromStdString(fontName);
 }
 
-void _debugRect(char* text, QRectF r) {
-    Base::Console().Message("TRACE - %s - rect: (%.3f,%.3f) x (%.3f,%.3f)\n",text,
+void QGIView::dumpRect(char* text, QRectF r) {
+    Base::Console().Message("DUMP - %s - rect: (%.3f,%.3f) x (%.3f,%.3f)\n",text,
                             r.left(),r.top(),r.right(),r.bottom());
 }

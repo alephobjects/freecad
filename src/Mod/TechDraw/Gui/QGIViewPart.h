@@ -56,9 +56,9 @@ public:
     void setViewPartFeature(TechDraw::DrawViewPart *obj);
     virtual void updateView(bool update = false) override;
     void tidy();
+    virtual QRectF boundingRect() const override;
 
     virtual void draw() override;
-    virtual QRectF boundingRect() const override;
 
 protected:
     /// Helper for pathArc()
@@ -85,11 +85,12 @@ protected:
 
     TechDraw::DrawHatch* faceIsHatched(int i,std::vector<TechDraw::DrawHatch*> hatchObjs) const;
     void dumpPath(const char* text,QPainterPath path);
+    void removePrimitives(void);
 
 private:
     QList<QGraphicsItem*> deleteItems;
 };
 
-} // namespace MDIViewPageGui
+} // namespace
 
 #endif // DRAWINGGUI_QGRAPHICSITEMVIEWPART_H

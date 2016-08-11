@@ -60,7 +60,7 @@ using namespace Gui;
 // ViewProvider
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-PROPERTY_SOURCE_ABSTRACT(Gui::ViewProvider, App::PropertyContainer)
+PROPERTY_SOURCE_ABSTRACT(Gui::ViewProvider, App::TransactionalObject)
 
 ViewProvider::ViewProvider()
     : pcAnnotation(0)
@@ -69,8 +69,9 @@ ViewProvider::ViewProvider()
     , _iActualMode(-1)
     , _iEditMode(-1)
     , viewOverrideMode(-1)
-    , _updateData(true)
 {
+    setStatus(UpdateData, true);
+
     pcRoot = new SoSeparator();
     pcRoot->ref();
     pcModeSwitch = new SoSwitch();
@@ -139,12 +140,12 @@ void ViewProvider::unsetEditViewer(View3DInventorViewer*)
 
 bool ViewProvider::isUpdatesEnabled () const
 {
-    return _updateData;
+    return testStatus(UpdateData);
 }
 
 void ViewProvider::setUpdatesEnabled (bool enable)
 {
-    _updateData = enable;
+    setStatus(UpdateData, enable);
 }
 
 void highlight(const HighlightMode& high)
@@ -415,6 +416,7 @@ SoPickedPoint* ViewProvider::getPointOnRay(const SbVec2s& pos, const View3DInven
     //get the picked point
     SoRayPickAction rp(viewer->getSoRenderManager()->getViewportRegion());
     rp.setPoint(pos);
+    rp.setRadius(viewer->getPickRadius());
     rp.apply(root);
     root->unref();
     trans->unref();
@@ -451,6 +453,7 @@ SoPickedPoint* ViewProvider::getPointOnRay(const SbVec3f& pos,const SbVec3f& dir
     //get the picked point
     SoRayPickAction rp(viewer->getSoRenderManager()->getViewportRegion());
     rp.setRay(pos,dir);
+    rp.setRadius(viewer->getPickRadius());
     rp.apply(root);
     root->unref();
     trans->unref();

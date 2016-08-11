@@ -324,19 +324,20 @@ def getGroupContents(objectslist,walls=False,addgroups=False):
     if not isinstance(objectslist,list):
         objectslist = [objectslist]
     for obj in objectslist:
-        if obj.isDerivedFrom("App::DocumentObjectGroup") or ((getType(obj) == "Space") and hasattr(obj,"Group")):
-            if obj.isDerivedFrom("Drawing::FeaturePage"):
-                # skip if the group is a page
-                newlist.append(obj)
-            else:
-                if addgroups:
+        if obj:
+            if obj.isDerivedFrom("App::DocumentObjectGroup") or ((getType(obj) == "Space") and hasattr(obj,"Group")):
+                if obj.isDerivedFrom("Drawing::FeaturePage"):
+                    # skip if the group is a page
                     newlist.append(obj)
-                newlist.extend(getGroupContents(obj.Group,walls,addgroups))
-        else:
-            #print("adding ",obj.Name)
-            newlist.append(obj)
-            if walls:
-                newlist.extend(getWindows(obj))
+                else:
+                    if addgroups:
+                        newlist.append(obj)
+                    newlist.extend(getGroupContents(obj.Group,walls,addgroups))
+            else:
+                #print("adding ",obj.Name)
+                newlist.append(obj)
+                if walls:
+                    newlist.extend(getWindows(obj))
                 
     # cleaning possible duplicates
     cleanlist = []
@@ -766,7 +767,7 @@ def makeAngularDimension(center,angles,p3,normal=None):
     FreeCAD.ActiveDocument.recompute()
     return obj
 
-def makeWire(pointslist,closed=False,placement=None,face=True,support=None):
+def makeWire(pointslist,closed=False,placement=None,face=None,support=None):
     '''makeWire(pointslist,[closed],[placement]): Creates a Wire object
     from the given list of vectors. If closed is True or first
     and last points are identical, the wire is closed. If face is
@@ -794,7 +795,8 @@ def makeWire(pointslist,closed=False,placement=None,face=True,support=None):
     obj.Points = pointslist
     obj.Closed = closed
     obj.Support = support
-    #obj.MakeFace = face
+    if face != None:
+        obj.MakeFace = face
     if placement: obj.Placement = placement
     if gui:
         _ViewProviderWire(obj.ViewObject)
@@ -3610,7 +3612,7 @@ class _ViewProviderDimension(_ViewProviderDraft):
             elif hasattr(obj.ViewObject,"Decimals"):
                 self.string = DraftGui.displayExternal(l,obj.ViewObject.Decimals,'Length',su)
             else:
-                self.string = DraftGui.displayExternal(l,getParam("dimPrecision",2),'Length',su)
+                self.string = DraftGui.displayExternal(l,None,'Length',su)
             if hasattr(obj.ViewObject,"Override"):
                 if obj.ViewObject.Override:
                     self.string = obj.ViewObject.Override.replace("$dim",\
@@ -3898,7 +3900,7 @@ class _ViewProviderAngularDimension(_ViewProviderDraft):
             if hasattr(obj.ViewObject,"Decimals"):
                 self.string = DraftGui.displayExternal(a,obj.ViewObject.Decimals,'Angle',su)
             else:
-                self.string = DraftGui.displayExternal(a,getParam("dimPrecision",2),'Angle',su)
+                self.string = DraftGui.displayExternal(a,None,'Angle',su)
             if obj.ViewObject.Override:
                 self.string = obj.ViewObject.Override.replace("$dim",\
                     self.string)

@@ -39,6 +39,7 @@
 #include <Base/Sequencer.h>
 #include <Base/Stream.h>
 #include <Base/Placement.h>
+#include <Base/Tools.h>
 #include <zipios++/gzipoutputstream.h>
 
 #include <cmath>
@@ -255,6 +256,7 @@ bool MeshInput::LoadSTL (std::istream &rstrIn)
 /** Loads an OBJ file. */
 bool MeshInput::LoadOBJ (std::istream &rstrIn)
 {
+    boost::regex rx_g("^g\\s+([\\x21-\\x7E]+)\\s*$");
     boost::regex rx_p("^v\\s+([-+]?[0-9]*)\\.?([0-9]+([eE][-+]?[0-9]+)?)"
                         "\\s+([-+]?[0-9]*)\\.?([0-9]+([eE][-+]?[0-9]+)?)"
                         "\\s+([-+]?[0-9]*)\\.?([0-9]+([eE][-+]?[0-9]+)?)\\s*$");
@@ -284,7 +286,6 @@ bool MeshInput::LoadOBJ (std::istream &rstrIn)
     std::string line;
     float fX, fY, fZ;
     unsigned int  i1=1,i2=1,i3=1,i4=1;
-    MeshGeomFacet clFacet;
     MeshFacet item;
 
     if (!rstrIn || rstrIn.bad() == true)
@@ -295,19 +296,20 @@ bool MeshInput::LoadOBJ (std::istream &rstrIn)
         return false;
 
     MeshIO::Binding rgb_value = MeshIO::OVERALL;
-    bool readvertices=false;
+    bool new_segment = true;
     while (std::getline(rstrIn, line)) {
-        for (std::string::iterator it = line.begin(); it != line.end(); ++it)
-            *it = tolower(*it);
+        // when a group name comes don't make it lower case
+        if (!line.empty() && line[0] != 'g') {
+            for (std::string::iterator it = line.begin(); it != line.end(); ++it)
+                *it = tolower(*it);
+        }
         if (boost::regex_match(line.c_str(), what, rx_p)) {
-            readvertices = true;
             fX = (float)std::atof(what[1].first);
             fY = (float)std::atof(what[4].first);
             fZ = (float)std::atof(what[7].first);
             meshPoints.push_back(MeshPoint(Base::Vector3f(fX, fY, fZ)));
         }
         else if (boost::regex_match(line.c_str(), what, rx_c)) {
-            readvertices = true;
             fX = (float)std::atof(what[1].first);
             fY = (float)std::atof(what[4].first);
             fZ = (float)std::atof(what[7].first);
@@ -322,7 +324,6 @@ bool MeshInput::LoadOBJ (std::istream &rstrIn)
             rgb_value = MeshIO::PER_VERTEX;
         }
         else if (boost::regex_match(line.c_str(), what, rx_t)) {
-            readvertices = true;
             fX = (float)std::atof(what[1].first);
             fY = (float)std::atof(what[4].first);
             fZ = (float)std::atof(what[7].first);
@@ -336,10 +337,14 @@ bool MeshInput::LoadOBJ (std::istream &rstrIn)
             meshPoints.back().SetProperty(prop);
             rgb_value = MeshIO::PER_VERTEX;
         }
+        else if (boost::regex_match(line.c_str(), what, rx_g)) {
+            new_segment = true;
+            _groupNames.push_back(Base::Tools::escapedUnicodeToUtf8(what[1].first));
+        }
         else if (boost::regex_match(line.c_str(), what, rx_f3)) {
             // starts a new segment
-            if (readvertices) {
-                readvertices = false;
+            if (new_segment) {
+                new_segment = false;
                 segment++;
             }
 
@@ -353,8 +358,8 @@ bool MeshInput::LoadOBJ (std::istream &rstrIn)
         }
         else if (boost::regex_match(line.c_str(), what, rx_f4)) {
             // starts a new segment
-            if (readvertices) {
-                readvertices = false;
+            if (new_segment) {
+                new_segment = false;
                 segment++;
             }
 
@@ -1893,12 +1898,26 @@ bool MeshOutput::SaveOBJ (std::ostream &out) const
         seq.next(true); // allow to cancel
     }
 
-    // facet indices (no texture and normal indices)
-    for (MeshFacetArray::_TConstIterator it = rFacets.begin(); it != rFacets.end(); ++it) {
-        out << "f " << it->_aulPoints[0]+1 << " "
-                    << it->_aulPoints[1]+1 << " "
-                    << it->_aulPoints[2]+1 << std::endl;
-        seq.next(true); // allow to cancel
+    if (_groups.empty()) {
+        // facet indices (no texture and normal indices)
+        for (MeshFacetArray::_TConstIterator it = rFacets.begin(); it != rFacets.end(); ++it) {
+            out << "f " << it->_aulPoints[0]+1 << " "
+                        << it->_aulPoints[1]+1 << " "
+                        << it->_aulPoints[2]+1 << std::endl;
+            seq.next(true); // allow to cancel
+        }
+    }
+    else {
+        for (std::vector<Group>::const_iterator gt = _groups.begin(); gt != _groups.end(); ++gt) {
+            out << "g " << Base::Tools::escapedUnicodeFromUtf8(gt->name.c_str()) << std::endl;
+            for (std::vector<unsigned long>::const_iterator it = gt->indices.begin(); it != gt->indices.end(); ++it) {
+                const MeshFacet& f = rFacets[*it];
+                out << "f " << f._aulPoints[0]+1 << " "
+                            << f._aulPoints[1]+1 << " "
+                            << f._aulPoints[2]+1 << std::endl;
+                seq.next(true); // allow to cancel
+            }
+        }
     }
 
     return true;
