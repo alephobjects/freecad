@@ -1,5 +1,5 @@
- /**************************************************************************
- *   Copyright (c) 2016 WandererFan <wandererfan@gmail.com>                *
+/***************************************************************************
+ *   Copyright (c) 2013 Jan Rheinländer <jrheinlaender[at]users.sourceforge.net>     *
  *                                                                         *
  *   This file is part of the FreeCAD CAx development system.              *
  *                                                                         *
@@ -21,36 +21,34 @@
  ***************************************************************************/
 
 
-#ifndef DRAWINGGUI_DLGTEMPLATEFIELD_H
-#define DRAWINGGUI_DLGTEMPLATEFIELD_H
+#ifndef GUI_VIEWPROVIDERFEMFLUIDBOUNDARY_H
+#define GUI_VIEWPROVIDERFEMFLUIDBOUNDARY_H
 
-#include <QDialog>
-#include <QString>
+#include "ViewProviderFemConstraint.h"
 
-#include <Mod/TechDraw/Gui/ui_DlgTemplateField.h>
-
-namespace TechDrawGui {
-
-class DlgTemplateField : public QDialog, public Ui_dlgTemplateField
+namespace FemGui
 {
-    Q_OBJECT
+
+class FemGuiExport ViewProviderFemConstraintFluidBoundary : public FemGui::ViewProviderFemConstraint
+{
+    PROPERTY_HEADER(FemGui::ViewProviderFemConstraintFluidBoundary);
 
 public:
-    DlgTemplateField( QWidget* parent = 0 );
-    ~DlgTemplateField();
+    /// Constructor
+    ViewProviderFemConstraintFluidBoundary();
+    virtual ~ViewProviderFemConstraintFluidBoundary();
 
-    void setFieldName(std::string name);
-    void setFieldContent(std::string content);
-    QString getFieldContent();
-
-public Q_SLOTS:
-    void accept();
-    void reject();
-
+    virtual void updateData(const App::Property*);
+    //virtual void onChanged(const App::Property*); //no further property for viewProvider
 protected:
-    void changeEvent(QEvent *e);
+    virtual bool setEdit(int ModNum);
+
+private:
+    /// Direction of the force
+    Base::Vector3f forceDirection;
 };
 
-} // namespace TechDrawGui
+} //namespace FemGui
 
-#endif // DRAWINGGUI_DLGTEMPLATEFIELD_H
+
+#endif // GUI_VIEWPROVIDERFEMConstraintFluidBoundary_H
