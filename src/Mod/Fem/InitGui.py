@@ -62,7 +62,7 @@ class FemWorkbench (Workbench):
 
         import subprocess
         from platform import system
-        ccx_path = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/Fem").GetString("ccxBinaryPath")
+        ccx_path = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/Fem/Ccx").GetString("ccxBinaryPath")
         if not ccx_path:
             try:
                 if system() == 'Linux':
@@ -72,14 +72,14 @@ class FemWorkbench (Workbench):
                 elif system() == 'Windows':
                     ccx_path = FreeCAD.getHomePath() + 'bin/ccx.exe'
                 if ccx_path:
-                    FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/Fem").SetString("ccxBinaryPath", ccx_path)
+                    FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/Fem/Ccx").SetString("ccxBinaryPath", ccx_path)
                 else:
                     FreeCAD.Console.PrintError("CalculiX ccx binary not found! Please set it manually in FEM preferences.\n")
             except Exception as e:
                 FreeCAD.Console.PrintError(e.message)
 
         import os
-        working_dir = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/Fem").GetString("WorkingDir")
+        working_dir = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/Fem/General").GetString("WorkingDir")
         if not (os.path.isdir(working_dir)):
             try:
                 os.makedirs(working_dir)
@@ -89,7 +89,7 @@ class FemWorkbench (Workbench):
                 working_dir = tempfile.gettempdir()
                 print ("Dir \'{}\' will be used instead.".format(working_dir))
         if working_dir:
-            FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/Fem").SetString("WorkingDir", working_dir)
+            FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/Fem/General").SetString("WorkingDir", working_dir)
         else:
             FreeCAD.Console.PrintError("Setting working directory \'{}\' for ccx failed!\n")
 

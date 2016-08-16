@@ -219,8 +219,13 @@ bool Document::setEdit(Gui::ViewProvider* p, int ModNum)
 {
     if (d->_editViewProvider)
         resetEdit();
+
     // is it really a ViewProvider of this document?
-    if (d->_ViewProviderMap.find(dynamic_cast<ViewProviderDocumentObject*>(p)->getObject()) == d->_ViewProviderMap.end())
+    ViewProviderDocumentObject* vp = dynamic_cast<ViewProviderDocumentObject*>(p);
+    if (!vp)
+        return false;
+
+    if (d->_ViewProviderMap.find(vp->getObject()) == d->_ViewProviderMap.end())
         return false;
 
     View3DInventor *activeView = dynamic_cast<View3DInventor *>(getActiveView());
@@ -1044,7 +1049,7 @@ void Document::createView(const Base::Type& typeId)
         View3DInventor* firstView = 0;
         QGLWidget* shareWidget = 0;
         if (!theViews.empty()) {
-            firstView = dynamic_cast<View3DInventor*>(theViews.front());
+            firstView = static_cast<View3DInventor*>(theViews.front());
             shareWidget = qobject_cast<QGLWidget*>(firstView->getViewer()->getGLWidget());
         }
 
@@ -1321,21 +1326,21 @@ MDIView* Document::getActiveView(void) const
     return active;
 }
 
-Gui::MDIView* Document::getViewOfViewProvider(Gui::ViewProvider* vp) const
+Gui::MDIView* Document::getViewOfNode(SoNode* node) const
 {
     std::list<MDIView*> mdis = getMDIViewsOfType(View3DInventor::getClassTypeId());
     for (std::list<MDIView*>::const_iterator it = mdis.begin(); it != mdis.end(); ++it) {
         View3DInventor* view = static_cast<View3DInventor*>(*it);
-        SoSearchAction searchAction;
-        searchAction.setNode(vp->getRoot());
-        searchAction.setInterest(SoSearchAction::FIRST);
-        searchAction.apply(view->getViewer()->getSceneGraph());
-        SoPath* selectionPath = searchAction.getPath();
-        if (selectionPath)
+        if (view->getViewer()->searchNode(node))
             return *it;
     }
 
     return 0;
+}
+
+Gui::MDIView* Document::getViewOfViewProvider(Gui::ViewProvider* vp) const
+{
+    return getViewOfNode(vp->getRoot());
 }
 
 Gui::MDIView* Document::getEditingViewOfViewProvider(Gui::ViewProvider* vp) const

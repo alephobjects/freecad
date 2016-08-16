@@ -1342,7 +1342,7 @@ Base::Vector3d ViewProviderSketch::seekConstraintPosition(const Base::Vector3d &
                                                           const SoNode *constraint)
 {
     assert(edit);
-    Gui::MDIView *mdi = this->getEditingView();
+    Gui::MDIView *mdi = this->getViewOfNode(edit->EditRoot);
     if (!(mdi && mdi->isDerivedFrom(Gui::View3DInventor::getClassTypeId())))
         return Base::Vector3d(0, 0, 0);
     Gui::View3DInventorViewer *viewer = static_cast<Gui::View3DInventor *>(mdi)->getViewer();
@@ -2569,7 +2569,7 @@ void ViewProviderSketch::drawConstraintIcons()
             SbVec3f pos0(startingpoint.x,startingpoint.y,startingpoint.z);
             SbVec3f pos1(endpoint.x,endpoint.y,endpoint.z);
 
-            Gui::MDIView *mdi = this->getEditingView();
+            Gui::MDIView *mdi = this->getViewOfNode(edit->EditRoot);
             if (!(mdi && mdi->isDerivedFrom(Gui::View3DInventor::getClassTypeId())))
                 return;
             Gui::View3DInventorViewer *viewer = static_cast<Gui::View3DInventor *>(mdi)->getViewer();
@@ -2939,10 +2939,13 @@ void ViewProviderSketch::drawTypicalConstraintIcon(const constrIconQueueItem &i)
 
 float ViewProviderSketch::getScaleFactor()
 {
-    Gui::MDIView *mdi = this->getEditingView();
+    assert(edit);
+    Gui::MDIView *mdi = this->getViewOfNode(edit->EditRoot);
     if (mdi && mdi->isDerivedFrom(Gui::View3DInventor::getClassTypeId())) {
         Gui::View3DInventorViewer *viewer = static_cast<Gui::View3DInventor *>(mdi)->getViewer();
-        return viewer->getSoRenderManager()->getCamera()->getViewVolume(viewer->getSoRenderManager()->getCamera()->aspectRatio.getValue()).getWorldToScreenScale(SbVec3f(0.f, 0.f, 0.f), 0.1f) / 3;
+        SoCamera* camera = viewer->getSoRenderManager()->getCamera();
+        float scale = camera->getViewVolume(camera->aspectRatio.getValue()).getWorldToScreenScale(SbVec3f(0.f, 0.f, 0.f), 0.1f) / 3;
+        return scale;
     }
     else {
         return 1.f;
