@@ -240,6 +240,7 @@ class _Equipment(ArchComponent.Component):
         #obj.addProperty("Part::PropertyPartShape","SideView","Arch","an optional 2D shape representing a side view of this equipment")
         obj.addProperty("App::PropertyString","Model","Arch","The model description of this equipment")
         obj.addProperty("App::PropertyString","Url","Arch","The url of the product page of this equipment")
+        obj.addProperty("App::PropertyVectorList","SnapPoints","Arch","Additional snap points for this equipment")
         self.Type = "Equipment"
         obj.Role = Roles
         obj.Proxy = self
@@ -280,7 +281,7 @@ class _Equipment(ArchComponent.Component):
                     base = base.removeSplitteR()
                 if base:
                     base = self.processSubShapes(obj,base,pl)
-                    self.applyShape(obj,base,pl)
+                    self.applyShape(obj,base,pl,allowinvalid=False,allownosolid=True)
 
 
 class _ViewProviderEquipment(ArchComponent.ViewProviderComponent):
@@ -292,6 +293,28 @@ class _ViewProviderEquipment(ArchComponent.ViewProviderComponent):
     def getIcon(self):
         import Arch_rc
         return ":/icons/Arch_Equipment_Tree.svg"
+
+    def attach(self, vobj):
+        from pivy import coin
+        sep = coin.SoSeparator()
+        self.coords = coin.SoCoordinate3()
+        sep.addChild(self.coords)
+        self.coords.point.deleteValues(0)
+        symbol = coin.SoMarkerSet()
+        symbol.markerIndex = coin.SoMarkerSet.CIRCLE_FILLED_5_5
+        sep.addChild(symbol)
+        rn = vobj.RootNode
+        rn.addChild(sep)
+        ArchComponent.ViewProviderComponent.attach(self,vobj)
+        
+        
+    def updateData(self, obj, prop):
+        if prop == "SnapPoints":
+            if obj.SnapPoints:
+                self.coords.point.setNum(len(obj.SnapPoints))
+                self.coords.point.setValues([[p.x,p.y,p.z] for p in obj.SnapPoints])
+            else:
+                self.coords.point.deleteValues(0)
 
 
 if FreeCAD.GuiUp:

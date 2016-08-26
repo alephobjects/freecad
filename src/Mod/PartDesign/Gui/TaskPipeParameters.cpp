@@ -715,7 +715,7 @@ bool TaskDlgPipeParameters::accept()
     //the user has to decide which option we should take if external references are used
     PartDesign::Pipe* pcPipe = static_cast<PartDesign::Pipe*>(getPipeView()->getObject());
     auto pcActiveBody = PartDesignGui::getBodyFor(pcPipe, false);
-    auto pcActivePart = PartDesignGui::getPartFor(pcActiveBody, false);
+  //auto pcActivePart = PartDesignGui::getPartFor(pcActiveBody, false);
     std::vector<App::DocumentObject*> copies;
 
     bool ext = false;
@@ -778,10 +778,11 @@ bool TaskDlgPipeParameters::accept()
         
         //we need to add the copied features to the body after the command action, as otherwise freecad crashs unexplainable
         for(auto obj : copies) {
-            if(pcActiveBody)
-                pcActiveBody->addFeature(obj);
-            else if (pcActivePart)
-                pcActivePart->addObject(obj);
+            //Dead code: pcActiveBody was previously used without checking for null, so it won't be null here either.
+            //if(pcActiveBody)
+            pcActiveBody->addFeature(obj);
+            //else if (pcActivePart)
+            //    pcActivePart->addObject(obj);
         }
     }
     catch (const Base::Exception& e) {

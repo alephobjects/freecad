@@ -80,9 +80,9 @@ const std::list<gp_Trsf> MultiTransform::getTransformations(const std::vector<Ap
 
     if (originalFeature->getTypeId().isDerivedFrom(PartDesign::FeatureAddSub::getClassTypeId())) {
         PartDesign::FeatureAddSub* addFeature = static_cast<PartDesign::FeatureAddSub*>(originalFeature);
-        if(addFeature->getAddSubType() == FeatureAddSub::Additive)
-            original = addFeature->AddSubShape.getShape().getShape();
-        else 
+        //if (addFeature->getAddSubType() == FeatureAddSub::Additive)
+        //    original = addFeature->AddSubShape.getShape().getShape();
+        //else
             original = addFeature->AddSubShape.getShape().getShape();
     }
 
@@ -124,6 +124,8 @@ const std::list<gp_Trsf> MultiTransform::getTransformations(const std::vector<Ap
                 // In other words, the length of the result vector is equal to the length of the
                 // oldTransformations vector
 
+                if (newTransformations.empty())
+                    throw Base::Exception("Number of occurrences must be a divisor of previous number of occurrences");
                 if (oldTransformations.size() % newTransformations.size() != 0)
                     throw Base::Exception("Number of occurrences must be a divisor of previous number of occurrences");
 

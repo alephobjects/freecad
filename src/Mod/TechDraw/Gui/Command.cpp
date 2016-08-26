@@ -66,6 +66,7 @@
 
 #include "MDIViewPage.h"
 #include "TaskProjGroup.h"
+#include "TaskSectionView.h"
 #include "ViewProviderPage.h"
 
 using namespace TechDrawGui;
@@ -302,13 +303,13 @@ void CmdTechDrawNewView::activated(int iMsg)
     std::string PageName = page->getNameInDocument();
 
     Gui::WaitCursor wc;
-    const std::vector<App::DocumentObject*> selectedProjections = getSelection().getObjectsOfType(TechDraw::DrawView::getClassTypeId());
+    const auto selectedProjections( getSelection().getObjectsOfType(TechDraw::DrawView::getClassTypeId()) );
 
     float newScale = 1.0;
     float newRotation = 0.0;
     Base::Vector3d newDirection(0.0, 0.0, 1.0);
     if (!selectedProjections.empty()) {
-        const TechDraw::DrawView* const myView = dynamic_cast<TechDraw::DrawView*>(selectedProjections.front());
+        const auto myView( static_cast<TechDraw::DrawView*>(selectedProjections.front()) );
 
         newScale = myView->Scale.getValue();
         newRotation = myView->Rotation.getValue();
@@ -362,27 +363,42 @@ CmdTechDrawNewViewSection::CmdTechDrawNewViewSection()
 
 void CmdTechDrawNewViewSection::activated(int iMsg)
 {
+    //TODO: should just use BaseView's page
     TechDraw::DrawPage* page = _findPage(this);
     if (!page) {
         return;
     }
 
-    std::vector<App::DocumentObject*> shapes = getSelection().getObjectsOfType(Part::Feature::getClassTypeId());
+    //std::vector<App::DocumentObject*> shapes = getSelection().getObjectsOfType(Part::Feature::getClassTypeId());
+    std::vector<App::DocumentObject*> shapes = getSelection().getObjectsOfType(TechDraw::DrawViewPart::getClassTypeId());
     if (shapes.empty()) {
         QMessageBox::warning(Gui::getMainWindow(), QObject::tr("Wrong selection"),
-            QObject::tr("Select at least 1 Part object."));
+            QObject::tr("Select at least 1 DrawingView object."));
         return;
     }
+    App::DocumentObject* dObj = *(shapes.begin());
+    TechDraw::DrawViewPart* dvp = dynamic_cast<TechDraw::DrawViewPart*>(dObj);
+    if (dvp->getSectionRef()) {
+        QMessageBox::warning(Gui::getMainWindow(), QObject::tr("Wrong selection"),
+            QObject::tr("This View already has a related Section. Choose another."));
+        return;
+    }
+
     std::string PageName = page->getNameInDocument();
 
     Gui::WaitCursor wc;
     openCommand("Create view");
-    for (std::vector<App::DocumentObject*>::iterator it = shapes.begin(); it != shapes.end(); ++it) {
-        std::string FeatName = getUniqueObjectName("Section");
-        doCommand(Doc,"App.activeDocument().addObject('TechDraw::DrawViewSection','%s')",FeatName.c_str());
-        doCommand(Doc,"App.activeDocument().%s.Source = App.activeDocument().%s",FeatName.c_str(),(*it)->getNameInDocument());
-        doCommand(Doc,"App.activeDocument().%s.addView(App.activeDocument().%s)",PageName.c_str(),FeatName.c_str());
-    }
+
+    std::string FeatName = getUniqueObjectName("Section");
+    std::string SourceName = dvp->Source.getValue()->getNameInDocument();
+    doCommand(Doc,"App.activeDocument().addObject('TechDraw::DrawViewSection','%s')",FeatName.c_str());
+    doCommand(Doc,"App.activeDocument().%s.Source = App.activeDocument().%s",FeatName.c_str(),SourceName.c_str());
+    doCommand(Doc,"App.activeDocument().%s.BaseView = App.activeDocument().%s",FeatName.c_str(),(dObj)->getNameInDocument());
+    doCommand(Doc,"App.activeDocument().%s.addView(App.activeDocument().%s)",PageName.c_str(),FeatName.c_str());
+    App::DocumentObject *docObj = getDocument()->getObject(FeatName.c_str());
+    TechDraw::DrawViewSection* dsv = dynamic_cast<TechDraw::DrawViewSection *>(docObj);
+    Gui::Control().showDialog(new TaskDlgSectionView(dvp,dsv));
+
     updateActive();
     commitCommand();
 }
@@ -435,7 +451,7 @@ void CmdTechDrawProjGroup::activated(int iMsg)
     doCommand(Doc,"App.activeDocument().%s.Source = App.activeDocument().%s",multiViewName.c_str(),SourceName.c_str());
 
     App::DocumentObject *docObj = getDocument()->getObject(multiViewName.c_str());
-    TechDraw::DrawProjGroup *multiView = dynamic_cast<TechDraw::DrawProjGroup *>(docObj);
+    auto multiView( static_cast<TechDraw::DrawProjGroup *>(docObj) );
 
     // set the anchor
     std::string anchor = "Front";
@@ -642,32 +658,31 @@ CmdTechDrawClipMinus::CmdTechDrawClipMinus()
 
 void CmdTechDrawClipMinus::activated(int iMsg)
 {
-    std::vector<App::DocumentObject*> dObj = getSelection().getObjectsOfType(TechDraw::DrawView::getClassTypeId());
+    auto dObj( getSelection().getObjectsOfType(TechDraw::DrawView::getClassTypeId()) );
     if (dObj.empty()) {
-        QMessageBox::warning(Gui::getMainWindow(), QObject::tr("Wrong selection"),
-                             QObject::tr("Select exactly one Drawing View object."));
+        QMessageBox::warning( Gui::getMainWindow(),
+                              QObject::tr("Wrong selection"),
+                              QObject::tr("Select exactly one Drawing View object.") );
         return;
     }
-    TechDraw::DrawView* view = dynamic_cast<TechDraw::DrawView*>(dObj.front());
 
-    bool clipFound = false;
+    auto view( static_cast<TechDraw::DrawView*>(dObj.front()) );
+
     TechDraw::DrawPage* page = view->findParentPage();
     const std::vector<App::DocumentObject*> pViews = page->Views.getValues();
-    TechDraw::DrawViewClip* clip = 0;
-    for (auto& v:pViews)     {
-        clip = nullptr;
-        if (v->isDerivedFrom(TechDraw::DrawViewClip::getClassTypeId())) {
-            clip = dynamic_cast<TechDraw::DrawViewClip*>(v);
-            if (clip->isViewInClip(view)) {
-                clipFound = true;
-                break;
-            }
+    TechDraw::DrawViewClip *clip(nullptr);
+    for (auto &v : pViews) {
+        clip = dynamic_cast<TechDraw::DrawViewClip*>(v);
+        if (clip && clip->isViewInClip(view)) {
+            break;
         }
+        clip = nullptr;
     }
 
-    if (!clipFound) {
-        QMessageBox::warning(Gui::getMainWindow(), QObject::tr("Wrong selection"),
-                             QObject::tr("View does not belong to a Clip"));
+    if (!clip) {
+        QMessageBox::warning( Gui::getMainWindow(),
+                              QObject::tr("Wrong selection"),
+                              QObject::tr("View does not belong to a Clip") );
         return;
     }
 
