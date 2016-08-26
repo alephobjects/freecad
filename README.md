@@ -2,11 +2,21 @@ Aleph Objects Mirror
 --------------------
 
 This is the Aleph Objects mirror of FreeCAD master repository.
-To sync this repository with the official one (done weekly):
-	git pull https://github.com/FreeCAD/FreeCAD
+- To sync this repository with the official one (done almost weekly manually):
+```
+git pull https://github.com/FreeCAD/FreeCAD
+```
+- To make a Debian package:
+```
+./package/package.sh debian_amd64
+```
+for 64bit arch or 
+```
+./package/package.sh debian_i386
+```
+for 32bit arch. The package will be in "package" directory.
 
-
-Please visit FreeCAD Universe below:
+- Please visit FreeCAD Universe below:
 
 FreeCAD
 -------
