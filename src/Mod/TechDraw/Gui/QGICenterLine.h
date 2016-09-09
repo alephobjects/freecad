@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (c) 2015 WandererFan <wandererfan@gmail.com>                *
+ *   Copyright (c) 2016 WandererFan <wandererfan@gmail.com>                *
  *                                                                         *
  *   This file is part of the FreeCAD CAx development system.              *
  *                                                                         *
@@ -20,36 +20,46 @@
  *                                                                         *
  ***************************************************************************/
 
-#ifndef _DrawUtil_h_
-#define _DrawUtil_h_
+#ifndef TECHDRAWGUI_QGICENTERLINE_H
+#define TECHDRAWGUI_QGICENTERLINE_H
 
-#include <string>
-#include <TopoDS.hxx>
-#include <TopoDS_Vertex.hxx>
-#include <TopoDS_Edge.hxx>
-#include <TopoDS_Wire.hxx>
-#include <TopoDS_Face.hxx>
-#include <TopoDS_Shape.hxx>
+#include <QPointF>
+#include <QPainterPath>
+#include <QColor>
 
-namespace TechDraw
+#include <Base/Vector3D.h>
+
+#include "QGIDecoration.h"
+
+namespace TechDrawGui
 {
 
-/// Convenient utility functions for TechDraw Module
-class TechDrawExport DrawUtil {
-    public:
-        static int getIndexFromName(std::string geomName);
-        static std::string getGeomTypeFromName(std::string geomName);
-        static std::string makeGeomName(std::string geomType, int index);
-        static bool isSamePoint(TopoDS_Vertex v1, TopoDS_Vertex v2);
-        static bool isZeroEdge(TopoDS_Edge& e);
-        //debugging routines
-        static void dumpVertexes(const char* text, const TopoDS_Shape& s);
-        static void dumpEdge(char* label, int i, TopoDS_Edge e);
-        static void dump1Vertex(const char* label, const TopoDS_Vertex& v);
-        static void countFaces(const char* label, const TopoDS_Shape& s);
-        static void countWires(const char* label, const TopoDS_Shape& s);
-        static void countEdges(const char* label, const TopoDS_Shape& s);
+class TechDrawGuiExport QGICenterLine : public QGIDecoration
+{
+public:
+    explicit QGICenterLine();
+    ~QGICenterLine() {}
+
+    enum {Type = QGraphicsItem::UserType + 174};
+    int type() const { return Type;}
+
+    virtual void paint(QPainter * painter, const QStyleOptionGraphicsItem * option, QWidget * widget = 0 );
+
+    void setBounds(double x1,double y1,double x2,double y2);
+    virtual void draw();
+
+protected:
+    QColor getCenterColor();
+    Qt::PenStyle getCenterStyle();
+    void makeLine();
+    void setTools();
+
+private:
+    QGraphicsPathItem* m_line;           //primpath?
+    QPointF            m_start;
+    QPointF            m_end;
 };
 
-} //end namespace TechDraw
-#endif
+}
+
+#endif // TECHDRAWGUI_QGICENTERLINE_H

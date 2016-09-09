@@ -1,6 +1,7 @@
 /***************************************************************************
  *   Copyright (c) Jürgen Riegel          (juergen.riegel@web.de) 2002     *
  *   Copyright (c) Luke Parry             (l.parry@warwick.ac.uk) 2013     *
+ *   Copyright (c) WandererFan            (wandererfan@gmail.com) 2016     *
  *                                                                         *
  *   This file is part of the FreeCAD CAx development system.              *
  *                                                                         *
@@ -57,6 +58,7 @@
 #include <TopoDS_Face.hxx>
 #include <TopExp.hxx>
 #include <TopExp_Explorer.hxx>
+#include <TopTools_IndexedMapOfShape.hxx>
 
 #endif
 
@@ -68,6 +70,7 @@
 #include <Base/FileInfo.h>
 #include <Mod/Part/App/PartFeature.h>
 
+#include "DrawUtil.h"
 #include "DrawViewSection.h"
 #include "Geometry.h"
 #include "GeometryObject.h"
@@ -96,26 +99,30 @@ DrawViewPart::DrawViewPart(void) : geometryObject(0)
     static const char *fgroup = "Format";
     static const char *lgroup = "SectionLine";
 
-    ADD_PROPERTY_TYPE(Direction ,(0,0,1.0)    ,group,App::Prop_None,"Projection normal direction");
+    //properties that affect Geometry
     ADD_PROPERTY_TYPE(Source ,(0),group,App::Prop_None,"3D Shape to view");
-    ADD_PROPERTY_TYPE(ShowHiddenLines ,(false),group,App::Prop_None,"Hidden lines on/off");
-    ADD_PROPERTY_TYPE(ShowSmoothLines ,(false),group,App::Prop_None,"Smooth lines on/off");
-    ADD_PROPERTY_TYPE(ShowSeamLines ,(false),group,App::Prop_None,"Seam lines on/off");
-    //ADD_PROPERTY_TYPE(ShowIsoLines ,(false),group,App::Prop_None,"Iso u,v lines on/off");
-    ADD_PROPERTY_TYPE(Tolerance,(0.05f),group,App::Prop_None,"Internal tolerance");
+    ADD_PROPERTY_TYPE(Direction ,(0,0,1.0)    ,group,App::Prop_None,"Projection direction. The direction you are looking from.");
+    ADD_PROPERTY_TYPE(XAxisDirection ,(1,0,0) ,group,App::Prop_None,"Where to place projection's XAxis (rotation)");
+    ADD_PROPERTY_TYPE(Tolerance,(0.05f),group,App::Prop_None,"Internal tolerance for calculations");
     Tolerance.setConstraints(&floatRange);
-    ADD_PROPERTY_TYPE(XAxisDirection ,(1,0,0) ,group,App::Prop_None,"Where to place projection XAxis in display");
 
+    //properties that affect Appearance
+    ADD_PROPERTY_TYPE(ShowHiddenLines ,(false),fgroup,App::Prop_None,"Hidden lines on/off");
+    ADD_PROPERTY_TYPE(ShowSmoothLines ,(false),fgroup,App::Prop_None,"Smooth lines on/off");
+    ADD_PROPERTY_TYPE(ShowSeamLines ,(false),fgroup,App::Prop_None,"Seam lines on/off");
+    //ADD_PROPERTY_TYPE(ShowIsoLines ,(false),group,App::Prop_None,"Iso u,v lines on/off");
     ADD_PROPERTY_TYPE(LineWidth,(0.7f),fgroup,App::Prop_None,"The thickness of visible lines");
     ADD_PROPERTY_TYPE(HiddenWidth,(0.15),fgroup,App::Prop_None,"The thickness of hidden lines, if enabled");
     ADD_PROPERTY_TYPE(ShowCenters ,(true),fgroup,App::Prop_None,"Center marks on/off");
     ADD_PROPERTY_TYPE(CenterScale,(2.0),fgroup,App::Prop_None,"Center mark size adjustment, if enabled");
+    ADD_PROPERTY_TYPE(HorizCenterLine ,(false),fgroup,App::Prop_None,"Show a horizontal centerline through view");
+    ADD_PROPERTY_TYPE(VertCenterLine ,(false),fgroup,App::Prop_None,"Show a vertical centerline through view");
 
+    //properties that affect Section Line
     ADD_PROPERTY_TYPE(ShowSectionLine ,(true)    ,lgroup,App::Prop_None,"Show/hide section line if applicable");
     ADD_PROPERTY_TYPE(HorizSectionLine ,(true)    ,lgroup,App::Prop_None,"Section line is horizontal");
-    ADD_PROPERTY_TYPE(ArrowUpSection ,(true)    ,lgroup,App::Prop_None,"Section line arrows point up");
+    ADD_PROPERTY_TYPE(ArrowUpSection ,(false)    ,lgroup,App::Prop_None,"Section line arrows point up");
     ADD_PROPERTY_TYPE(SymbolSection,("A") ,lgroup,App::Prop_None,"Section identifier");
-
 
     geometryObject = new TechDrawGeometry::GeometryObject();
 }
@@ -148,53 +155,98 @@ App::DocumentObjectExecReturn *DrawViewPart::execute(void)
         Base::Console().Log("INFO - DVP::execute - Scale: %.3f\n",s);
         return DrawView::execute();
     }
+    geometryObject->setScale(s);
 
-    geometryObject->setScale(Scale.getValue());
+    //TODO: remove these try/catch block when code is stable
+    gp_Pnt inputCenter;
     try {
-        gp_Pnt inputCenter = TechDrawGeometry::findCentroid(shape,
-                                                            Direction.getValue(),
-                                                            getValidXDir());
+        inputCenter = TechDrawGeometry::findCentroid(shape,
+                                                     Direction.getValue(),
+                                                     getValidXDir());
         shapeCentroid = Base::Vector3d(inputCenter.X(),inputCenter.Y(),inputCenter.Z());
-        TopoDS_Shape mirroredShape = TechDrawGeometry::mirrorShape(shape,
-                                                                 inputCenter,
-                                                                 Scale.getValue());
-        buildGeometryObject(mirroredShape,inputCenter);
-#if MOD_TECHDRAW_HANDLE_FACES
-        extractFaces();
-#endif //#if MOD_TECHDRAW_HANDLE_FACES
-
     }
     catch (Standard_Failure) {
-        Handle_Standard_Failure e = Standard_Failure::Caught();
-        return new App::DocumentObjectExecReturn(e->GetMessageString());
+        Handle_Standard_Failure e1 = Standard_Failure::Caught();
+        Base::Console().Log("LOG - DVP::execute - findCentroid failed for %s - %s **\n",getNameInDocument(),e1->GetMessageString());
+        return new App::DocumentObjectExecReturn(e1->GetMessageString());
     }
 
-    // There is a guaranteed change so check any references linked to this and touch
-    // We need to update all views pointing at this (ProjectionGroup, ClipGroup, etc)
-    std::vector<App::DocumentObject*> parent = getInList();
-    for (std::vector<App::DocumentObject*>::iterator it = parent.begin(); it != parent.end(); ++it) {
-        if ((*it)->getTypeId().isDerivedFrom(DrawView::getClassTypeId())) {
-            TechDraw::DrawView *view = static_cast<TechDraw::DrawView *>(*it);
-            view->touch();
-        }
+    TopoDS_Shape mirroredShape;
+    try {
+        mirroredShape = TechDrawGeometry::mirrorShape(shape,
+                                                       inputCenter,
+                                                       Scale.getValue());
     }
+    catch (Standard_Failure) {
+        Handle_Standard_Failure e2 = Standard_Failure::Caught();
+        Base::Console().Log("LOG - DVP::execute - mirrorShape failed for %s - %s **\n",getNameInDocument(),e2->GetMessageString());
+        return new App::DocumentObjectExecReturn(e2->GetMessageString());
+    }
+
+    try {
+        buildGeometryObject(mirroredShape,inputCenter);
+    }
+    catch (Standard_Failure) {
+        Handle_Standard_Failure e3 = Standard_Failure::Caught();
+        Base::Console().Log("LOG - DVP::execute - buildGeometryObject failed for %s - %s **\n",getNameInDocument(),e3->GetMessageString());
+        return new App::DocumentObjectExecReturn(e3->GetMessageString());
+    }
+
+#if MOD_TECHDRAW_HANDLE_FACES
+    try {
+        extractFaces();
+    }
+    catch (Standard_Failure) {
+        Handle_Standard_Failure e4 = Standard_Failure::Caught();
+        Base::Console().Log("LOG - DVP::execute - buildGeometryObject failed for %s - %s **\n",getNameInDocument(),e4->GetMessageString());
+        return new App::DocumentObjectExecReturn(e4->GetMessageString());
+    }
+#endif //#if MOD_TECHDRAW_HANDLE_FACES
+
+    //TODO: not sure about this
+    // There is a guaranteed change so check any references linked to this and touch
+    // We need to update all views pointing at this (ProjectionGroup, ClipGroup, Section, etc)
+//    std::vector<App::DocumentObject*> parent = getInList();
+//    for (std::vector<App::DocumentObject*>::iterator it = parent.begin(); it != parent.end(); ++it) {
+//        if ((*it)->getTypeId().isDerivedFrom(DrawView::getClassTypeId())) {
+//            TechDraw::DrawView *view = static_cast<TechDraw::DrawView *>(*it);
+//            view->touch();
+//        }
+//    }
     return DrawView::execute();
 }
 
 short DrawViewPart::mustExecute() const
 {
-    short result  = (Direction.isTouched() ||
-            XAxisDirection.isTouched() ||
-            Source.isTouched() ||
-            Scale.isTouched() ||
-            ScaleType.isTouched() ||
-            ShowHiddenLines.isTouched() ||
-            ShowSmoothLines.isTouched() ||
-            ShowSeamLines.isTouched()   ||
-            LineWidth.isTouched()       ||
-            Tolerance.isTouched()       ||
-            HiddenWidth.isTouched());
-    return result;
+    short result = 0;
+    if (!isRestoring()) {
+        result  =  (Direction.isTouched()  ||
+                    XAxisDirection.isTouched()  ||
+                    Source.isTouched()  ||
+                    Scale.isTouched()  ||
+                    ScaleType.isTouched()  ||
+                    Tolerance.isTouched());
+
+// don't have to execute DVP, but should update Gui
+//                    ShowHiddenLines.isTouched()  ||
+//                    ShowSmoothLines.isTouched()  ||
+//                    ShowSeamLines.isTouched()  ||
+//                    LineWidth.isTouched()  ||
+//                    HiddenWidth.isTouched()  ||
+//                    ShowCenters.isTouched()  ||
+//                    CenterScale.isTouched()  ||
+//                    ShowSectionLine.isTouched()  ||
+//                    HorizSectionLine.isTouched()  ||
+//                    ArrowUpSection.isTouched()  ||
+//                    SymbolSection.isTouched()  ||
+//                    HorizCenterLine.isTouched()  ||
+//                    VertCenterLine.isTouched());
+        }
+
+    if (result) {
+        return result;
+    }
+    return TechDraw::DrawView::mustExecute();
 }
 
 void DrawViewPart::onChanged(const App::Property* prop)
@@ -207,18 +259,21 @@ void DrawViewPart::onChanged(const App::Property* prop)
             prop == &XAxisDirection ||
             prop == &Source ||
             prop == &Scale ||
-            prop == &ScaleType ||
-            prop == &ShowHiddenLines ||
-            prop == &ShowSmoothLines ||
-            prop == &ShowSeamLines   ||
-            prop == &LineWidth       ||
-            prop == &HiddenWidth     ||
-            prop == &ShowCenters     ||
-            prop == &CenterScale     ||
-            prop == &ShowSectionLine ||
-            prop == &HorizSectionLine  ||
-            prop == &ArrowUpSection  ||
-            prop == &SymbolSection  ) {
+            prop == &ScaleType) {
+//don't need to execute, but need to update Gui
+//            prop == &ShowHiddenLines ||
+//            prop == &ShowSmoothLines ||
+//            prop == &ShowSeamLines   ||
+//            prop == &LineWidth       ||
+//            prop == &HiddenWidth     ||
+//            prop == &ShowCenters     ||
+//            prop == &CenterScale     ||
+//            prop == &ShowSectionLine ||
+//            prop == &HorizSectionLine  ||
+//            prop == &ArrowUpSection  ||
+//            prop == &SymbolSection   ||
+//            prop == &HorizCenterLine ||
+//            prop == &VertCenterLine) {
             try {
                 App::DocumentObjectExecReturn *ret = recompute();
                 delete ret;
@@ -235,36 +290,38 @@ void DrawViewPart::onChanged(const App::Property* prop)
 void DrawViewPart::buildGeometryObject(TopoDS_Shape shape, gp_Pnt& inputCenter)
 {
     Base::Vector3d baseProjDir = Direction.getValue();
+    Base::Vector3d validXDir = getValidXDir();
 
     saveParamSpace(baseProjDir,
-                   getValidXDir());
+                   validXDir);
 
     geometryObject->projectShape(shape,
                             inputCenter,
                             Direction.getValue(),
-                            getValidXDir());
+                            validXDir);
+    //TODO: why not be all line type in 1 call to extract geometry
     geometryObject->extractGeometry(TechDrawGeometry::ecHARD,
                                     true);
     geometryObject->extractGeometry(TechDrawGeometry::ecOUTLINE,
                                     true);
-    if (ShowSmoothLines.getValue()) {
+    //if (ShowSmoothLines.getValue()) {
         geometryObject->extractGeometry(TechDrawGeometry::ecSMOOTH,
                                         true);
-    }
-    if (ShowSeamLines.getValue()) {
+    //}
+    //if (ShowSeamLines.getValue()) {
         geometryObject->extractGeometry(TechDrawGeometry::ecSEAM,
                                         true);
-    }
+    //}
     //if (ShowIsoLines.getValue()) {
     //    geometryObject->extractGeometry(TechDrawGeometry::ecUVISO,
     //                                    true);
     //}
-    if (ShowHiddenLines.getValue()) {
+    //if (ShowHiddenLines.getValue()) {
         geometryObject->extractGeometry(TechDrawGeometry::ecHARD,
                                         false);
         //geometryObject->extractGeometry(TechDrawGeometry::ecOUTLINE,     //hidden outline,smooth,seam??
         //                                true);
-    }
+    //}
     bbox = geometryObject->calcBoundingBox();
 }
 
@@ -281,7 +338,16 @@ void DrawViewPart::extractFaces()
         }
     }
 
-    std::vector<TopoDS_Edge> faceEdges = origEdges;
+    std::vector<TopoDS_Edge> faceEdges;
+    std::vector<TopoDS_Edge> nonZero;
+    for (auto& e:origEdges) {                            //drop any zero edges
+        if (!DrawUtil::isZeroEdge(e)) {
+            nonZero.push_back(e);
+        }
+    }
+    faceEdges = nonZero;
+    origEdges = nonZero;
+
     std::vector<TopoDS_Edge>::iterator itOrig = origEdges.begin();
 
     //HLR algo does not provide all edge intersections for edge endpoints.
@@ -290,6 +356,9 @@ void DrawViewPart::extractFaces()
     for (; itOrig != origEdges.end(); itOrig++, idb++) {
         TopoDS_Vertex v1 = TopExp::FirstVertex((*itOrig));
         TopoDS_Vertex v2 = TopExp::LastVertex((*itOrig));
+        if (DrawUtil::isSamePoint(v1,v2)) {
+            continue;  //skip zero length edges. shouldn't happen ;)
+        }
         std::vector<TopoDS_Edge>::iterator itNew = faceEdges.begin();
         std::vector<size_t> deleteList;
         std::vector<TopoDS_Edge> edgesToAdd;
@@ -298,6 +367,10 @@ void DrawViewPart::extractFaces()
             if ( itOrig->IsSame(*itNew) ){
                 continue;
             }
+            if (DrawUtil::isZeroEdge((*itNew))) {
+                continue;  //skip zero length edges. shouldn't happen ;)
+            }
+
             bool removeThis = false;
             std::vector<TopoDS_Vertex> splitPoints;
             if (isOnEdge((*itNew),v1,false)) {
@@ -313,8 +386,10 @@ void DrawViewPart::extractFaces()
             }
 
             if (!splitPoints.empty()) {
-                std::vector<TopoDS_Edge> subEdges = splitEdge(splitPoints,(*itNew));
-                edgesToAdd.insert(std::end(edgesToAdd), std::begin(subEdges), std::end(subEdges));
+                if (!DrawUtil::isZeroEdge((*itNew))) {
+                    std::vector<TopoDS_Edge> subEdges = splitEdge(splitPoints,(*itNew));
+                    edgesToAdd.insert(std::end(edgesToAdd), std::begin(subEdges), std::end(subEdges));
+                }
             }
         }
         //delete the split edge(s) and add the subedges
@@ -329,77 +404,13 @@ void DrawViewPart::extractFaces()
         faceEdges.insert(std::end(faceEdges), std::begin(edgesToAdd),std::end(edgesToAdd));
     }
 
-    std::vector<TopoDS_Vertex> uniqueVert = makeUniqueVList(faceEdges);
-    std::vector<WalkerEdge> walkerEdges = makeWalkerEdges(faceEdges,uniqueVert);
-
+//find all the wires in the pile of faceEdges
     EdgeWalker ew;
-    ew.setSize(uniqueVert.size());
-    ew.loadEdges(walkerEdges);
+    ew.loadEdges(faceEdges);
     ew.perform();
-    facelist result = ew.getResult();
+    std::vector<TopoDS_Wire> fw = ew.getResultNoDups();
 
-    facelist::iterator iFace = result.begin();
-    std::vector<TopoDS_Wire> fw;
-    for (;iFace != result.end(); iFace++) {
-        edgelist::iterator iEdge = (*iFace).begin();
-        std::vector<TopoDS_Edge> fe;
-        for (;iEdge != (*iFace).end(); iEdge++) {
-            fe.push_back(faceEdges.at((*iEdge).idx));
-        }
-    TopoDS_Wire w = makeCleanWire(fe);             //make 1 clean wire from its edges
-    fw.push_back(w);
-    }
-
-    std::vector<TopoDS_Wire> sortedWires = sortWiresBySize(fw,false);
-    if (!sortedWires.size()) {
-        Base::Console().Log("INFO - DVP::extractFaces - no sorted Wires!\n");
-        return;                                     // might happen in the middle of changes?
-    }
-
-    //remove the largest wire (OuterWire of graph)
-    Bnd_Box bigBox;
-    if (sortedWires.size() && !sortedWires.front().IsNull()) {
-        BRepBndLib::Add(sortedWires.front(), bigBox);
-        bigBox.SetGap(0.0);
-    }
-    std::vector<std::size_t> toBeChecked;
-    std::vector<TopoDS_Wire>::iterator it = sortedWires.begin() + 1;
-    for (; it != sortedWires.end(); it++) {
-        if (!(*it).IsNull()) {
-            Bnd_Box littleBox;
-            BRepBndLib::Add((*it), littleBox);
-            littleBox.SetGap(0.0);
-            if (bigBox.SquareExtent() > littleBox.SquareExtent()) {
-                break;
-            } else {
-                auto position = std::distance( sortedWires.begin(), it );    //get an index from iterator
-                toBeChecked.push_back(position);
-            }
-        }
-    }
-    //unfortuneately, faces can have same bbox, but not be same size.  need to weed out biggest
-    if (toBeChecked.size() == 0) {
-        //nobody had as big a bbox as first element of sortedWires
-        sortedWires.erase(sortedWires.begin());
-    } else if (toBeChecked.size() > 0) {
-        BRepBuilderAPI_MakeFace mkFace(sortedWires.front());
-        const TopoDS_Face& face = mkFace.Face();
-        GProp_GProps props;
-        BRepGProp::SurfaceProperties(face, props);
-        double bigArea = props.Mass();
-        unsigned int bigIndex = 0;
-        for (unsigned int idx = 1; idx < toBeChecked.size(); idx++) {
-            BRepBuilderAPI_MakeFace mkFace2(sortedWires.at(idx));
-            const TopoDS_Face& face2 = mkFace2.Face();
-            BRepGProp::SurfaceProperties(face2, props);
-            double area = props.Mass();
-            if (area > bigArea) {
-                bigArea = area;
-                bigIndex = idx;
-            }
-        }
-        sortedWires.erase(sortedWires.begin() + bigIndex);
-    }
+    std::vector<TopoDS_Wire> sortedWires = ew.sortStrip(fw,true);
 
     std::vector<TopoDS_Wire>::iterator itWire = sortedWires.begin();
     for (; itWire != sortedWires.end(); itWire++) {
@@ -412,61 +423,7 @@ void DrawViewPart::extractFaces()
     }
 }
 
-std::vector<TopoDS_Vertex> DrawViewPart:: makeUniqueVList(std::vector<TopoDS_Edge> edges)
-{
-    std::vector<TopoDS_Vertex> uniqueVert;
-    for(auto& e:edges) {
-        TopoDS_Vertex v1 = TopExp::FirstVertex(e);
-        TopoDS_Vertex v2 = TopExp::LastVertex(e);
-        bool addv1 = true;
-        bool addv2 = true;
-        for (auto v:uniqueVert) {
-            if (isSamePoint(v,v1))
-                addv1 = false;
-            if (isSamePoint(v,v2))
-                addv2 = false;
-        }
-        if (addv1)
-            uniqueVert.push_back(v1);
-        if (addv2)
-            uniqueVert.push_back(v2);
-    }
-    return uniqueVert;
-}
-
-//!make WalkerEdges (unique Vertex index pairs) from edge list
-std::vector<WalkerEdge> DrawViewPart::makeWalkerEdges(std::vector<TopoDS_Edge> edges,
-                                                      std::vector<TopoDS_Vertex> verts)
-{
-    std::vector<WalkerEdge> walkerEdges;
-    for (auto e:edges) {
-        TopoDS_Vertex ev1 = TopExp::FirstVertex(e);
-        TopoDS_Vertex ev2 = TopExp::LastVertex(e);
-        int v1dx = findUniqueVert(ev1, verts);
-        int v2dx = findUniqueVert(ev2, verts);
-        WalkerEdge we;
-        we.v1 = v1dx;
-        we.v2 = v2dx;
-        walkerEdges.push_back(we);
-    }
-    return walkerEdges;
-}
-
-int DrawViewPart::findUniqueVert(TopoDS_Vertex vx, std::vector<TopoDS_Vertex> &uniqueVert)
-{
-    int idx = 0;
-    int result = 0;
-    for(auto& v:uniqueVert) {                    //we're always going to find vx, right?
-        if (isSamePoint(v,vx)) {
-            result = idx;
-            break;
-        }
-        idx++;
-    }                                           //if idx >= uniqueVert.size() TARFU
-    return result;
-}
-
-double DrawViewPart::simpleMinDist(TopoDS_Shape s1, TopoDS_Shape s2)
+double DrawViewPart::simpleMinDist(TopoDS_Shape s1, TopoDS_Shape s2) const
 {
     Standard_Real minDist = -1;
 
@@ -497,22 +454,11 @@ bool DrawViewPart::isOnEdge(TopoDS_Edge e, TopoDS_Vertex v, bool allowEnds)
     if (result) {
         TopoDS_Vertex v1 = TopExp::FirstVertex(e);
         TopoDS_Vertex v2 = TopExp::LastVertex(e);
-        if (isSamePoint(v,v1) || isSamePoint(v,v2)) {
+        if (DrawUtil::isSamePoint(v,v1) || DrawUtil::isSamePoint(v,v2)) {
             if (!allowEnds) {
                 result = false;
             }
         }
-    }
-    return result;
-}
-
-bool DrawViewPart::isSamePoint(TopoDS_Vertex v1, TopoDS_Vertex v2)
-{
-    bool result = false;
-    gp_Pnt p1 = BRep_Tool::Pnt(v1);
-    gp_Pnt p2 = BRep_Tool::Pnt(v2);
-    if (p1.IsEqual(p2,Precision::Confusion())) {
-        result = true;
     }
     return result;
 }
@@ -530,12 +476,28 @@ std::vector<TopoDS_Edge> DrawViewPart::splitEdge(std::vector<TopoDS_Vertex> spli
     Handle_Geom_Curve c = adapt.Curve().Curve();
     //simple version for 1 splitPoint
     //TODO: handle case where e is split in multiple points (ie circular edge cuts line twice)
-    BRepBuilderAPI_MakeEdge mkBuilder1(c, vStart, splitPoints[0]);
-    TopoDS_Edge e1 = mkBuilder1.Edge();
-    BRepBuilderAPI_MakeEdge mkBuilder2(c, splitPoints[0], vEnd);
-    TopoDS_Edge e2 = mkBuilder2.Edge();
-    result.push_back(e1);
-    result.push_back(e2);
+// for some reason, BRepBuilderAPI_MakeEdge sometimes fails without reporting IsDone status or error, so we use try/catch
+    try {
+        BRepBuilderAPI_MakeEdge mkBuilder1(c, vStart ,splitPoints[0]);
+        if (mkBuilder1.IsDone()) {
+            TopoDS_Edge e1 = mkBuilder1.Edge();
+            result.push_back(e1);
+        }
+    }
+    catch (Standard_Failure) {
+        Base::Console().Message("LOG - DVP::splitEdge failed building 1st edge\n");
+    }
+
+    try{
+        BRepBuilderAPI_MakeEdge mkBuilder2(c, splitPoints[0], vEnd);
+        if (mkBuilder2.IsDone()) {
+            TopoDS_Edge e2 = mkBuilder2.Edge();
+            result.push_back(e2);
+        }
+    }
+    catch (Standard_Failure) {
+        Base::Console().Message("LOG - DVP::splitEdge failed building 2nd  edge\n");
+    }
     return result;
 }
 
@@ -630,7 +592,7 @@ QRectF DrawViewPart::getRect() const
 }
 
 //used to project pt (ex SectionOrigin) onto paper plane
-Base::Vector3d DrawViewPart::projectPoint(Base::Vector3d pt) const
+Base::Vector3d DrawViewPart::projectPoint(const Base::Vector3d& pt) const
 {
     Base::Vector3d centeredPoint = pt - shapeCentroid;
     Base::Vector3d direction = Direction.getValue();
@@ -643,73 +605,6 @@ Base::Vector3d DrawViewPart::projectPoint(Base::Vector3d pt) const
     gp_Pnt2d prjPnt;
     projector.Project(gp_Pnt(centeredPoint.x,centeredPoint.y,centeredPoint.z), prjPnt);
     return Base::Vector3d(prjPnt.X(),prjPnt.Y(), 0.0);
-}
-
-
-
-//! make a clean wire with sorted, oriented, connected, etc edges
-TopoDS_Wire DrawViewPart::makeCleanWire(std::vector<TopoDS_Edge> edges, double tol)
-{
-    TopoDS_Wire result;
-    BRepBuilderAPI_MakeWire mkWire;
-    ShapeFix_ShapeTolerance sTol;
-    Handle(ShapeExtend_WireData) wireData = new ShapeExtend_WireData();
-
-    for (auto e:edges) {
-        wireData->Add(e);
-    }
-
-    Handle(ShapeFix_Wire) fixer = new ShapeFix_Wire;
-    fixer->Load(wireData);
-    fixer->Perform();
-    fixer->FixReorder();
-    fixer->SetMaxTolerance(tol);
-    fixer->ClosedWireMode() = Standard_True;
-    fixer->FixConnected(Precision::Confusion());
-    fixer->FixClosed(Precision::Confusion());
-
-    for (int i = 1; i <= wireData->NbEdges(); i ++) {
-        TopoDS_Edge edge = fixer->WireData()->Edge(i);
-        sTol.SetTolerance(edge, tol, TopAbs_VERTEX);
-        mkWire.Add(edge);
-    }
-
-    result = mkWire.Wire();
-    return result;
-}
-
-//! return true if w1 bbox is bigger than w2 bbox
-//NOTE: this won't necessarily sort the OuterWire correctly (ex smaller wire, same bbox)
-class DrawViewPart::wireCompare: public std::binary_function<const TopoDS_Wire&,
-                                                            const TopoDS_Wire&, bool>
-{
-public:
-    bool operator() (const TopoDS_Wire& w1, const TopoDS_Wire& w2)
-    {
-        Bnd_Box box1, box2;
-        if (!w1.IsNull()) {
-            BRepBndLib::Add(w1, box1);
-            box1.SetGap(0.0);
-        }
-
-        if (!w2.IsNull()) {
-            BRepBndLib::Add(w2, box2);
-            box2.SetGap(0.0);
-        }
-
-        return box1.SquareExtent() > box2.SquareExtent();
-    }
-};
-
-//sort wires in order of bbox diagonal.
-std::vector<TopoDS_Wire> DrawViewPart::sortWiresBySize(std::vector<TopoDS_Wire>& w, bool ascend)
-{
-    std::vector<TopoDS_Wire> wires = w;
-    std::sort(wires.begin(), wires.end(), wireCompare());
-    if (ascend) {
-        std::reverse(wires.begin(),wires.end());
-    }
-    return wires;
 }
 
 bool DrawViewPart::hasGeometry(void) const
@@ -730,26 +625,40 @@ Base::Vector3d DrawViewPart::getValidXDir() const
 {
     Base::Vector3d X(1.0,0.0,0.0);
     Base::Vector3d Y(0.0,1.0,0.0);
+    Base::Vector3d Z(0.0,0.0,1.0);
     Base::Vector3d xDir = XAxisDirection.getValue();
     if (xDir.Length() < Precision::Confusion()) {
         Base::Console().Warning("XAxisDirection has zero length - using (1,0,0)\n");
         xDir = X;
     }
+    double xLength = xDir.Length();
+    xDir.Normalize();
     Base::Vector3d viewDir = Direction.getValue();
-    if ((xDir - viewDir).Length() < Precision::Confusion()) {
-        if (xDir == X) {
-            xDir = Y;
-        }else{
-            xDir = X;
+    viewDir.Normalize();
+    Base::Vector3d randomDir(0.0,0.0,0.0);
+    if (xDir == viewDir) {
+        randomDir = Y;
+        if (randomDir == xDir) {
+            randomDir = X;
         }
-        Base::Console().Warning("XAxisDirection cannot equal Direction - using (%.3f,%.3f%.3f)\n",
-                                 xDir.x,xDir.y,xDir.z);
+        xDir = randomDir;
+        Base::Console().Warning("XAxisDirection cannot equal +/- Direction - using (%.3f,%.3f%.3f)\n",
+                                xDir.x,xDir.y,xDir.z);
+    } else if (xDir == (-1.0 * viewDir)) {
+        randomDir = Y;
+        if ((xDir == randomDir) ||
+            (xDir == (-1.0 * randomDir))) {
+                randomDir = X;
+        }
+        xDir = randomDir;
+        Base::Console().Warning("XAxisDirection cannot equal +/- Direction - using (%.3f,%.3f%.3f)\n",
+                                xDir.x,xDir.y,xDir.z);
     }
-    return xDir;
+    return xLength * xDir;
 }
 
-void DrawViewPart::saveParamSpace(Base::Vector3d direction,
-                                   Base::Vector3d xAxis)
+void DrawViewPart::saveParamSpace(const Base::Vector3d& direction,
+                                  const Base::Vector3d& xAxis)
 {
     gp_Ax2 viewAxis;
     viewAxis = gp_Ax2(gp_Pnt(0, 0, 0),
@@ -775,54 +684,6 @@ DrawViewSection* DrawViewPart::getSectionRef(void) const
     return result;
 }
 
-void DrawViewPart::dumpVertexes(const char* text, const TopoDS_Shape& s)
-{
-    Base::Console().Message("DUMP - %s\n",text);
-    TopExp_Explorer expl(s, TopAbs_VERTEX);
-    int i;
-    for (i = 1 ; expl.More(); expl.Next(),i++) {
-        const TopoDS_Vertex& v = TopoDS::Vertex(expl.Current());
-        gp_Pnt pnt = BRep_Tool::Pnt(v);
-        Base::Console().Message("v%d: (%.3f,%.3f,%.3f)\n",i,pnt.X(),pnt.Y(),pnt.Z());
-    }
-}
-
-void DrawViewPart::countFaces(const char* text, const TopoDS_Shape& s)
-{
-    TopExp_Explorer expl(s, TopAbs_FACE);
-    int i;
-    for (i = 0 ; expl.More(); expl.Next(),i++) {
-    }
-    Base::Console().Message("COUNT - %s has %d Faces\n",text,i);
-}
-
-void DrawViewPart::countWires(const char* text, const TopoDS_Shape& s)
-{
-     TopExp_Explorer expl(s, TopAbs_WIRE);
-     int i = 0;
-     for (; expl.More(); expl.Next()) {
-         i++;
-     }
-     Base::Console().Message("COUNT - %s has %d wires\n",text,i);
-}
-
-void DrawViewPart::countEdges(const char* text, const TopoDS_Shape& s)
-{
-     TopExp_Explorer expl(s, TopAbs_EDGE);
-     int i = 0;
-     for (; expl.More(); expl.Next()) {
-         i++;
-     }
-     Base::Console().Message("COUNT - %s has %d edges\n",text,i);
-}
-
-void DrawViewPart::dump1Vertex(const char* text, const TopoDS_Vertex& v)
-{
-    Base::Console().Message("DUMP - DVP::dump1Vertex - %s\n",text);
-    gp_Pnt pnt = BRep_Tool::Pnt(v);
-    Base::Console().Message("%s: (%.3f,%.3f,%.3f)\n",text,pnt.X(),pnt.Y(),pnt.Z());
-}
-
 PyObject *DrawViewPart::getPyObject(void)
 {
     if (PythonObject.is(Py::_None())) {
@@ -830,21 +691,6 @@ PyObject *DrawViewPart::getPyObject(void)
         PythonObject = Py::Object(new DrawViewPartPy(this),true);
     }
     return Py::new_reference_to(PythonObject);
-}
-
-void DrawViewPart::dumpEdge(char* label, int i, TopoDS_Edge e)
-{
-    BRepAdaptor_Curve adapt(e);
-    double start = BRepLProp_CurveTool::FirstParameter(adapt);
-    double end = BRepLProp_CurveTool::LastParameter(adapt);
-    BRepLProp_CLProps propStart(adapt,start,0,Precision::Confusion());
-    const gp_Pnt& vStart = propStart.Value();
-    BRepLProp_CLProps propEnd(adapt,end,0,Precision::Confusion());
-    const gp_Pnt& vEnd = propEnd.Value();
-    //Base::Console().Message("%s edge:%d start:(%.3f,%.3f,%.3f)/%0.3f end:(%.2f,%.3f,%.3f)/%.3f\n",label,i,
-    //                        vStart.X(),vStart.Y(),vStart.Z(),start,vEnd.X(),vEnd.Y(),vEnd.Z(),end);
-    Base::Console().Message("%s edge:%d start:(%.3f,%.3f,%.3f)  end:(%.2f,%.3f,%.3f)\n",label,i,
-                            vStart.X(),vStart.Y(),vStart.Z(),vEnd.X(),vEnd.Y(),vEnd.Z());
 }
 
 

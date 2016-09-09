@@ -59,7 +59,8 @@ const char* DrawView::ScaleTypeEnums[]= {"Document",
 PROPERTY_SOURCE(TechDraw::DrawView, App::DocumentObject)
 
 DrawView::DrawView(void)
-  : autoPos(true)
+  : autoPos(true),
+    mouseMove(false)
 {
     static const char *group = "Drawing view";
     ADD_PROPERTY_TYPE(X ,(0),group,App::Prop_None,"X position of the view on the page in modelling units (mm)");
@@ -70,9 +71,6 @@ DrawView::DrawView(void)
     ADD_PROPERTY_TYPE(ScaleType,((long)0),group, App::Prop_None, "Scale Type");
     ADD_PROPERTY_TYPE(Scale ,(1.0),group,App::Prop_None,"Scale factor of the view");
 
-    if (isRestoring()) {
-        autoPos = false;
-    }
 }
 
 DrawView::~DrawView()
@@ -103,9 +101,7 @@ App::DocumentObjectExecReturn *DrawView::execute(void)
 void DrawView::onChanged(const App::Property* prop)
 {
     if (!isRestoring()) {
-        if (prop == &Scale) {
-            execute();
-        } else if (prop == &ScaleType) {
+        if (prop == &ScaleType) {
             if (ScaleType.isValue("Document")) {
                 Scale.setStatus(App::Property::ReadOnly,true);
                 App::GetApplication().signalChangePropertyEditor(Scale);
@@ -116,17 +112,32 @@ void DrawView::onChanged(const App::Property* prop)
                 Scale.setStatus(App::Property::ReadOnly,true);
                 App::GetApplication().signalChangePropertyEditor(Scale);
             }
-            execute();
         } else if (prop == &X ||
                    prop == &Y) {
-            setAutoPos(false);
-            execute();
-        } else if (prop == &Rotation) {
-            execute();
+            if (isMouseMove()) {
+                setAutoPos(false);         //should only be for manual changes? not programmatic changes?
+            }
         }
     }
 
     App::DocumentObject::onChanged(prop);
+}
+
+short DrawView::mustExecute() const
+{
+    short result = 0;
+    if (!isRestoring()) {
+        result  =  (X.isTouched()  ||
+                    Y.isTouched()  ||
+                    Rotation.isTouched()  ||
+                    Scale.isTouched()  ||
+                    ScaleType.isTouched() );
+    }
+    if (result) {
+        return result;
+    } else {
+        return App::DocumentObject::mustExecute();
+    }
 }
 
 ////you must override this in derived class

@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (c) 2015 WandererFan <wandererfan@gmail.com>                *
+ *   Copyright (c) 2016 Victor Titov (DeepSOIC)      <vv.titov@gmail.com>  *
  *                                                                         *
  *   This file is part of the FreeCAD CAx development system.              *
  *                                                                         *
@@ -20,36 +20,64 @@
  *                                                                         *
  ***************************************************************************/
 
-#ifndef _DrawUtil_h_
-#define _DrawUtil_h_
+#ifndef PART_FEATUREOFFSET_H
+#define PART_FEATUREOFFSET_H
 
-#include <string>
-#include <TopoDS.hxx>
-#include <TopoDS_Vertex.hxx>
-#include <TopoDS_Edge.hxx>
-#include <TopoDS_Wire.hxx>
-#include <TopoDS_Face.hxx>
-#include <TopoDS_Shape.hxx>
+#include <App/PropertyStandard.h>
+#include <App/PropertyUnits.h>
+#include <Mod/Part/App/PartFeature.h>
 
-namespace TechDraw
+namespace Part
 {
 
-/// Convenient utility functions for TechDraw Module
-class TechDrawExport DrawUtil {
-    public:
-        static int getIndexFromName(std::string geomName);
-        static std::string getGeomTypeFromName(std::string geomName);
-        static std::string makeGeomName(std::string geomType, int index);
-        static bool isSamePoint(TopoDS_Vertex v1, TopoDS_Vertex v2);
-        static bool isZeroEdge(TopoDS_Edge& e);
-        //debugging routines
-        static void dumpVertexes(const char* text, const TopoDS_Shape& s);
-        static void dumpEdge(char* label, int i, TopoDS_Edge e);
-        static void dump1Vertex(const char* label, const TopoDS_Vertex& v);
-        static void countFaces(const char* label, const TopoDS_Shape& s);
-        static void countWires(const char* label, const TopoDS_Shape& s);
-        static void countEdges(const char* label, const TopoDS_Shape& s);
+class PartExport Offset : public Part::Feature
+{
+    PROPERTY_HEADER(Part::Offset);
+
+public:
+    Offset();
+    ~Offset();
+
+    App::PropertyLink  Source;
+    App::PropertyFloat Value;
+    App::PropertyEnumeration Mode;
+    App::PropertyEnumeration Join;
+    App::PropertyBool Intersection;
+    App::PropertyBool SelfIntersection;
+    App::PropertyBool Fill;
+
+    /** @name methods override feature */
+    //@{
+    /// recalculate the feature
+    virtual App::DocumentObjectExecReturn *execute(void) override;
+    virtual short mustExecute() const override;
+    virtual const char* getViewProviderName(void) const override {
+        return "PartGui::ViewProviderOffset";
+    }
+    //@}
+
+private:
+    static const char* ModeEnums[];
+    static const char* JoinEnums[];
 };
 
-} //end namespace TechDraw
-#endif
+class PartExport Offset2D : public Offset
+{
+    PROPERTY_HEADER(Part::Offset2D);
+public:
+    Offset2D();
+    ~Offset2D();
+
+    /** @name methods override feature */
+    //@{
+    /// recalculate the feature
+    virtual App::DocumentObjectExecReturn *execute(void) override;
+    virtual short mustExecute() const override;
+    virtual const char* getViewProviderName(void) const override {
+        return "PartGui::ViewProviderOffset2D";
+    }
+    //@}
+};
+
+}
+#endif // PART_FEATUREOFFSET_H

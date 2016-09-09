@@ -52,6 +52,7 @@
 
 #endif
 
+#include <chrono>
 
 #include <App/Application.h>
 #include <App/Material.h>
@@ -79,18 +80,20 @@ PROPERTY_SOURCE(TechDraw::DrawViewSection, TechDraw::DrawViewPart)
 DrawViewSection::DrawViewSection()
 {
     static const char *sgroup = "Section";
-    static const char *lgroup = "Line";
+    static const char *fgroup = "Format";
+    //static const char *lgroup = "Line";
 
     Base::Reference<ParameterGrp> hGrp = App::GetApplication().GetUserParameter()
         .GetGroup("BaseApp")->GetGroup("Preferences")->GetGroup("Mod/TechDraw/Colors");
     App::Color fcColor = App::Color((uint32_t) hGrp->GetUnsigned("CutSurfaceColor", 0xC8C8C800));
 
-    ADD_PROPERTY_TYPE(SectionNormal ,(0,0,1.0)    ,sgroup,App::Prop_None,"Section Plane normal direction");
+    ADD_PROPERTY_TYPE(BaseView ,(0),sgroup,App::Prop_None,"2D View with SectionLine");
+    ADD_PROPERTY_TYPE(SectionNormal ,(0,0,1.0)    ,sgroup,App::Prop_None,"Section Plane normal direction");  //direction of extrusion of cutting prism
     ADD_PROPERTY_TYPE(SectionOrigin ,(0,0,0) ,sgroup,App::Prop_None,"Section Plane Origin");
-    ADD_PROPERTY_TYPE(ShowCutSurface ,(true),sgroup,App::Prop_None,"Show the cut surface");
-    ADD_PROPERTY_TYPE(CutSurfaceColor,(fcColor),sgroup,App::Prop_None,"The color to shade the cut surface");
 
-    ADD_PROPERTY_TYPE(BaseView ,(0),lgroup,App::Prop_None,"2D View with SectionLine");
+    ADD_PROPERTY_TYPE(ShowCutSurface ,(true),fgroup,App::Prop_None,"Show the cut surface");
+    ADD_PROPERTY_TYPE(CutSurfaceColor,(fcColor),fgroup,App::Prop_None,"The color to shade the cut surface");
+
 
     geometryObject = new TechDrawGeometry::GeometryObject();
 }
@@ -101,13 +104,23 @@ DrawViewSection::~DrawViewSection()
 
 short DrawViewSection::mustExecute() const
 {
-    // If Tolerance Property is touched
-    if(SectionNormal.isTouched() ||
-       SectionOrigin.isTouched() ||
-       ShowCutSurface.isTouched() ||
-       CutSurfaceColor.isTouched() )
-          return 1;
+    short result = 0;
+    if (!isRestoring()) {
+        result  = (Scale.isTouched() ||
+                   ScaleType.isTouched() ||
+                   Direction.isTouched()     ||
+                   XAxisDirection.isTouched() ||
+                   BaseView.isTouched()  ||
+                   SectionNormal.isTouched() ||
+                   SectionOrigin.isTouched() );
 
+//don't need to execute, but need to update Gui
+//                   ShowCutSurface.isTouched() ||
+//                   CutSurfaceColor.isTouched() );
+    }
+    if (result) {
+        return result;
+    }
     return TechDraw::DrawViewPart::mustExecute();
 }
 
@@ -126,7 +139,7 @@ App::DocumentObjectExecReturn *DrawViewSection::execute(void)
         return new App::DocumentObjectExecReturn("BaseView object is not a DrawViewPart object");
 
     const Part::TopoShape &partTopo = static_cast<Part::Feature*>(link)->Shape.getShape();
-    const TechDraw::DrawViewPart* dvp = static_cast<TechDraw::DrawViewPart*>(base);
+    //const TechDraw::DrawViewPart* dvp = static_cast<TechDraw::DrawViewPart*>(base);
 
     if (partTopo.getShape().IsNull())
         return new App::DocumentObjectExecReturn("Linked shape object is empty");
@@ -142,7 +155,6 @@ App::DocumentObjectExecReturn *DrawViewSection::execute(void)
 
     Base::Vector3d tmp1 = SectionOrigin.getValue();
     Base::Vector3d plnPnt(tmp1.x, tmp1.y, tmp1.z);
-    //Base::Vector3d tmp2 = SectionNormal.getValue();
     Base::Vector3d plnNorm(plnNormal.X(), plnNormal.Y(), plnNormal.Z());
 
 //    if(!bb.IsCutPlane(plnPnt, plnNorm)) {      //this test doesn't work if plane is coincident with bb!
@@ -150,37 +162,12 @@ App::DocumentObjectExecReturn *DrawViewSection::execute(void)
         Base::Console().Warning("DVS: Section Plane doesn't intersect part in %s\n",getNameInDocument());
         Base::Console().Warning("DVS: Using center of bounding box.\n");
         plnPnt = bb.GetCenter();
-        SectionOrigin.setValue(plnPnt);
+        //SectionOrigin.setValue(plnPnt);
     }
 
-    // Gather the corner points of bbox
-    std::vector<Base::Vector3d> pnts;
-    pnts.push_back(Base::Vector3d(bb.MinX,bb.MinY,bb.MinZ));
-    pnts.push_back(Base::Vector3d(bb.MaxX,bb.MinY,bb.MinZ));
-    pnts.push_back(Base::Vector3d(bb.MinX,bb.MaxY,bb.MinZ));
-    pnts.push_back(Base::Vector3d(bb.MaxX,bb.MaxY,bb.MinZ));
-    pnts.push_back(Base::Vector3d(bb.MinX,bb.MinY,bb.MaxZ));
-    pnts.push_back(Base::Vector3d(bb.MaxX,bb.MinY,bb.MaxZ));
-    pnts.push_back(Base::Vector3d(bb.MinX,bb.MaxY,bb.MaxZ));
-    pnts.push_back(Base::Vector3d(bb.MaxX,bb.MaxY,bb.MaxZ));
+    double dMax = bb.CalcDiagonalLength();
 
-    double uMax = 0, vMax = 0, wMax = 0., dMax = 0;
-    for(std::vector<Base::Vector3d>::const_iterator it = pnts.begin(); it != pnts.end(); ++it) {
-        // Project each bounding box point onto projection plane and find largest u,v,w values
-        Base::Vector3d pnt = (*it);
-        pnt.ProjectToPlane(plnPnt, plnNorm);
-        uMax = std::max(uMax, std::abs(plnPnt.x - pnt.x));       //one will be zero
-        vMax = std::max(vMax, std::abs(plnPnt.y - pnt.y));
-        wMax = std::max(wMax, std::abs(plnPnt.z - pnt.z));
-
-        //dMax is the bounding box point furthest away from plane. used for determining extrusion length
-        double dist = (*it).DistanceToPlane(plnPnt, plnNorm);
-        dMax = std::max(dMax, dist);
-    }
-
-    //use largest of u,v,w to make cutting face that covers whole shape
-    double maxParm = std::max(uMax,vMax);
-    maxParm = std::max(maxParm,wMax);
+    double maxParm = dMax;
     BRepBuilderAPI_MakePolygon mkPoly;
     gp_Pnt pn1(origin + xAxis *  maxParm  + yAxis *  maxParm);
     gp_Pnt pn2(origin + xAxis *  maxParm  + yAxis * -maxParm);
@@ -212,10 +199,13 @@ App::DocumentObjectExecReturn *DrawViewSection::execute(void)
 
     geometryObject->setTolerance(Tolerance.getValue());
     geometryObject->setScale(Scale.getValue());
+    Base::Vector3d validXDir = getValidXDir();
+
+    gp_Pnt inputCenter;
     try {
-        gp_Pnt inputCenter = TechDrawGeometry::findCentroid(rawShape,
-                                                            Direction.getValue(),
-                                                            getValidXDir());
+        inputCenter = TechDrawGeometry::findCentroid(rawShape,
+                                                     Direction.getValue(),
+                                                     validXDir);
         TopoDS_Shape mirroredShape = TechDrawGeometry::mirrorShape(rawShape,
                                                     inputCenter,
                                                     Scale.getValue());
@@ -224,7 +214,14 @@ App::DocumentObjectExecReturn *DrawViewSection::execute(void)
 #if MOD_TECHDRAW_HANDLE_FACES
         extractFaces();
 #endif //#if MOD_TECHDRAW_HANDLE_FACES
+    }
+    catch (Standard_Failure) {
+        Handle_Standard_Failure e1 = Standard_Failure::Caught();
+        Base::Console().Log("LOG - DVS::execute - base shape failed for %s - %s **\n",getNameInDocument(),e1->GetMessageString());
+        return new App::DocumentObjectExecReturn(e1->GetMessageString());
+    }
 
+    try {
         TopoDS_Compound sectionCompound = findSectionPlaneIntersections(rawShape);
         TopoDS_Shape mirroredSection = TechDrawGeometry::mirrorShape(sectionCompound,
                                                                      inputCenter,
@@ -239,26 +236,18 @@ App::DocumentObjectExecReturn *DrawViewSection::execute(void)
             TopoDS_Face pFace = projectFace(face,
                                             inputCenter,
                                             Direction.getValue(),
-                                            getValidXDir());
+                                            validXDir);
              builder.Add(newFaces,pFace);
 
         }
         sectionFaces = newFaces;
     }
     catch (Standard_Failure) {
-        Handle_Standard_Failure e1 = Standard_Failure::Caught();
-        return new App::DocumentObjectExecReturn(std::string("DVS building Section shape failed: ") +
-                                                 std::string(e1->GetMessageString()));
+        Handle_Standard_Failure e2 = Standard_Failure::Caught();
+        Base::Console().Log("LOG - DVS::execute - failed building section faces for %s - %s **\n",getNameInDocument(),e2->GetMessageString());
+        return new App::DocumentObjectExecReturn(e2->GetMessageString());
     }
 
-    std::string symbol = dvp->SymbolSection.getValue();
-    std::string symbolText = "Section " + symbol + "-" + symbol;
-    if (symbolText.compare(Label.getValue())) {
-        Label.setValue(symbolText.c_str());
-    }
-
-
-    touch();
     return DrawView::execute();
 }
 
@@ -329,7 +318,7 @@ std::vector<TechDrawGeometry::Face*> DrawViewSection::getFaceGeometry()
     return result;
 }
 
-//! project a single face using HLR
+//! project a single face using HLR - used for section faces
 TopoDS_Face DrawViewSection::projectFace(const TopoDS_Shape &face,
                                      gp_Pnt faceCenter,
                                      const Base::Vector3d &direction,
@@ -361,11 +350,12 @@ TopoDS_Face DrawViewSection::projectFace(const TopoDS_Shape &face,
     for (i = 1 ; expl.More(); expl.Next(),i++) {
         const TopoDS_Edge& edge = TopoDS::Edge(expl.Current());
         if (edge.IsNull()) {
-            Base::Console().Log("INFO - GO::projectFace - hard edge: %d is NULL\n",i);
+            Base::Console().Log("INFO - DVS::projectFace - hard edge: %d is NULL\n",i);
             continue;
         }
         faceEdges.push_back(edge);
     }
+    //TODO: verify that outline edges aren't required
     //if edge is both hard & outline, it will be duplicated? are hard edges enough?
 //    TopExp_Explorer expl2(outEdges, TopAbs_EDGE);
 //    for (i = 1 ; expl2.More(); expl2.Next(),i++) {
@@ -395,38 +385,19 @@ TopoDS_Face DrawViewSection::projectFace(const TopoDS_Shape &face,
 //        }
 //    }
 
-    std::vector<TopoDS_Vertex> uniqueVert = makeUniqueVList(faceEdges);
-    std::vector<WalkerEdge> walkerEdges = makeWalkerEdges(faceEdges,uniqueVert);
-
+//recreate the wires for this single face
     EdgeWalker ew;
-    ew.setSize(uniqueVert.size());
-    ew.loadEdges(walkerEdges);
+    ew.loadEdges(faceEdges);
     ew.perform();
-    facelist result = ew.getResult();
-    result = TechDraw::EdgeWalker::removeDuplicateFaces(result);
-
-    facelist::iterator iFace = result.begin();
-    std::vector<TopoDS_Wire> fw;
-    int dbi = 0;
-    for (;iFace != result.end(); iFace++,dbi++) {
-        edgelist::iterator iEdge = (*iFace).begin();
-        std::vector<TopoDS_Edge> fe;
-        for (;iEdge != (*iFace).end(); iEdge++) {
-            fe.push_back(faceEdges.at((*iEdge).idx));
-        }
-        TopoDS_Wire w = makeCleanWire(fe);
-        fw.push_back(w);
-    }
+    std::vector<TopoDS_Wire> fw = ew.getResultNoDups();
 
     TopoDS_Face projectedFace;
+
     if (!fw.empty()) {
-        std::vector<TopoDS_Wire> sortedWires = sortWiresBySize(fw);
+        std::vector<TopoDS_Wire> sortedWires = ew.sortStrip(fw, true);
         if (sortedWires.empty()) {
             return projectedFace;
         }
-        //TODO: should have the same size checking logic as DVP?
-        //remove the largest wire (OuterWire of graph)   ??? but duplicates have been removed? only do this if a mosaic?
-        //sortedWires.erase(sortedWires.begin());
 
         BRepBuilderAPI_MakeFace mkFace(sortedWires.front(),true);                   //true => only want planes?
         std::vector<TopoDS_Wire>::iterator itWire = ++sortedWires.begin();          //starting with second face
@@ -435,6 +406,7 @@ TopoDS_Face DrawViewSection::projectFace(const TopoDS_Shape &face,
         }
         projectedFace = mkFace.Face();
     }
+
     return projectedFace;
 }
 

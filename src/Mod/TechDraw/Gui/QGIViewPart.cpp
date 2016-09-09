@@ -59,6 +59,7 @@
 #include "QGIVertex.h"
 #include "QGICMark.h"
 #include "QGISectionLine.h"
+#include "QGICenterLine.h"
 #include "QGCustomBorder.h"
 #include "QGCustomLabel.h"
 #include "QGIViewPart.h"
@@ -242,6 +243,7 @@ void QGIViewPart::updateView(bool update)
     if( viewPart == nullptr ) {
         return;
     }
+    //Base::Console().Message("TRACE - QGIVP::updateView(%d) - %s\n",update,getViewObject()->getNameInDocument());
 
     QGIView::updateView(update);
 
@@ -282,6 +284,8 @@ void QGIViewPart::draw() {
 
 void QGIViewPart::drawViewPart()
 {
+    //Base::Console().Message("TRACE - QGIVP::drawViewPart\n");
+
     auto viewPart( dynamic_cast<TechDraw::DrawViewPart *>(getViewObject()) );
     if ( viewPart == nullptr ) {
         return;
@@ -381,6 +385,8 @@ void QGIViewPart::drawViewPart()
         viewPart->getSectionRef() ) {
         drawSectionLine(true);
     }
+    //draw center lines
+    drawCenterLines(true);
 }
 
 QGIFace* QGIViewPart::drawFace(TechDrawGeometry::Face* f, int idx)
@@ -447,6 +453,8 @@ void QGIViewPart::removeDecorations()
 
 void QGIViewPart::drawSectionLine(bool b)
 {
+    //Base::Console().Message("TRACE - QGIVP::drawSectionLine);
+
     TechDraw::DrawViewPart *viewPart = dynamic_cast<TechDraw::DrawViewPart *>(getViewObject());
     TechDraw::DrawViewSection *viewSection = viewPart->getSectionRef();
     if (!viewPart ||
@@ -505,6 +513,47 @@ void QGIViewPart::drawSectionLine(bool b)
     }
 }
 
+void QGIViewPart::drawCenterLines(bool b)
+{
+    TechDraw::DrawViewPart *viewPart = dynamic_cast<TechDraw::DrawViewPart *>(getViewObject());
+    if (!viewPart)  {
+        return;
+
+    }
+    if (b) {
+        bool horiz = viewPart->HorizCenterLine.getValue();
+        bool vert = viewPart->VertCenterLine.getValue();
+
+        QGICenterLine* centerLine;
+        double sectionSpan;
+        double sectionFudge = 10.0;
+        double xVal, yVal;
+        if (horiz)  {
+            centerLine = new QGICenterLine();
+            addToGroup(centerLine);
+            centerLine->setPos(0.0,0.0);
+            sectionSpan = m_border->rect().width() + sectionFudge;
+            xVal = sectionSpan / 2.0;
+            yVal = 0.0;
+            centerLine->setBounds(-xVal,-yVal,xVal,yVal);
+            //centerLine->setWidth(viewPart->LineWidth.getValue());
+            centerLine->setZValue(ZVALUE::SECTIONLINE);
+            centerLine->draw();
+        }
+        if (vert) {
+            centerLine = new QGICenterLine();
+            addToGroup(centerLine);
+            centerLine->setPos(0.0,0.0);
+            sectionSpan = (m_border->rect().height() - m_label->boundingRect().height()) + sectionFudge;
+            xVal = 0.0;
+            yVal = sectionSpan / 2.0;
+            centerLine->setBounds(-xVal,-yVal,xVal,yVal);
+            //centerLine->setWidth(viewPart->LineWidth.getValue());
+            centerLine->setZValue(ZVALUE::SECTIONLINE);
+            centerLine->draw();
+        }
+    }
+}
 
 // As called by arc of ellipse case:
 // pathArc(path, geom->major, geom->minor, geom->angle, geom->largeArc, geom->cw,
