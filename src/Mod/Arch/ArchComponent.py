@@ -31,7 +31,7 @@ Roles = ['Undefined','Beam','Chimney','Column','Covering','Curtain Wall',
          'Member','Plate','Railing','Ramp','Ramp Flight','Rebar','Pile','Roof','Shading Device','Slab','Space',
          'Stair','Stair Flight','Tendon','Wall','Wall Layer','Window']
 
-import FreeCAD,Draft
+import FreeCAD,Draft,ArchCommands
 from FreeCAD import Vector
 if FreeCAD.GuiUp:
     import FreeCADGui
@@ -116,7 +116,7 @@ def removeFromComponent(compobject,subobject):
             l.append(subobject)
             compobject.Subtractions = l
             if (Draft.getType(subobject) != "Window") and (not Draft.isClone(subobject,"Window",True)):
-                subobject.ViewObject.hide()
+                ArchCommands.setAsSubcomponent(subobject)
 
 
 class SelectionTaskPanel:
