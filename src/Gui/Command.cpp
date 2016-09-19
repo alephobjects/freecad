@@ -25,6 +25,7 @@
 #ifndef _PreComp_
 # include <sstream>
 # include <QApplication>
+# include <QByteArray>
 # include <QDir>
 # include <QKeySequence>
 # include <QMessageBox>
@@ -448,7 +449,8 @@ void Command::doCommand(DoCmd_Type eType, const char* sCmd, ...)
     const QString cmd = s.vsprintf(sCmd, ap);
     va_end(ap);
 
-    QByteArray format = cmd.toLatin1();
+    // 'vsprintf' expects a utf-8 string for '%s'
+    QByteArray format = cmd.toUtf8();
 
 #ifdef FC_LOGUSERACTION
     Base::Console().Log("CmdC: %s\n", format.constData());
@@ -463,13 +465,23 @@ void Command::doCommand(DoCmd_Type eType, const char* sCmd, ...)
 }
 
 /// Run a App level Action
-void Command::runCommand(DoCmd_Type eType,const char* sCmd)
+void Command::runCommand(DoCmd_Type eType, const char* sCmd)
 {
     if (eType == Gui)
         Gui::Application::Instance->macroManager()->addLine(MacroManager::Gui,sCmd);
     else
         Gui::Application::Instance->macroManager()->addLine(MacroManager::App,sCmd);
     Base::Interpreter().runString(sCmd);
+}
+
+/// Run a App level Action
+void Command::runCommand(DoCmd_Type eType, const QByteArray& sCmd)
+{
+    if (eType == Gui)
+        Gui::Application::Instance->macroManager()->addLine(MacroManager::Gui,sCmd.constData());
+    else
+        Gui::Application::Instance->macroManager()->addLine(MacroManager::App,sCmd.constData());
+    Base::Interpreter().runString(sCmd.constData());
 }
 
 void Command::addModule(DoCmd_Type eType,const char* sModuleName)
@@ -930,7 +942,7 @@ void PythonCommand::activated(int iMsg)
         }
     }
     else {
-        doCommand(Doc,Activation.c_str());
+        runCommand(Doc,Activation.c_str());
     }
 }
 
