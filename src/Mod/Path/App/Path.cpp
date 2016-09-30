@@ -26,7 +26,6 @@
 #ifndef _PreComp_
 #endif
 
-#include <strstream>
 #include <boost/regex.hpp>
 
 #include <Base/Writer.h>
@@ -47,19 +46,20 @@ using namespace Base;
 
 TYPESYSTEM_SOURCE(Path::Toolpath , Base::Persistence);
 
-Toolpath::Toolpath() {
+Toolpath::Toolpath(){
 }
 
-Toolpath::Toolpath(const Toolpath& otherPath):vpcCommands(otherPath.vpcCommands.size()){
+Toolpath::Toolpath(const Toolpath& otherPath) :vpcCommands(otherPath.vpcCommands.size()) {
     operator=(otherPath);
     recalculate();
 }
 
-Toolpath::~Toolpath() {
+Toolpath::~Toolpath()
+{
     clear();
 }
 
-Toolpath &Toolpath::operator=(const Toolpath& otherPath){
+Toolpath &Toolpath::operator=(const Toolpath& otherPath) {
     clear();
     vpcCommands.resize(otherPath.vpcCommands.size());
     int i = 0;
@@ -69,20 +69,20 @@ Toolpath &Toolpath::operator=(const Toolpath& otherPath){
     return *this;
 }
 
-void Toolpath::clear(void) {
+void Toolpath::clear(void)  {
     for(std::vector<Command*>::iterator it = vpcCommands.begin();it!=vpcCommands.end();++it)
         delete ( *it );
     vpcCommands.clear();
     recalculate();
 }
 
-void Toolpath::addCommand(const Command &Cmd){
+void Toolpath::addCommand(const Command &Cmd) {
     Command *tmp = new Command(Cmd);
     vpcCommands.push_back(tmp);
     recalculate();
 }
 
-void Toolpath::insertCommand(const Command &Cmd, int pos){
+void Toolpath::insertCommand(const Command &Cmd, int pos) {
     if (pos == -1) {
         addCommand(Cmd);
     } else if (pos <= static_cast<int>(vpcCommands.size())) {
@@ -94,7 +94,7 @@ void Toolpath::insertCommand(const Command &Cmd, int pos){
     recalculate();
 }
 
-void Toolpath::deleteCommand(int pos){
+void Toolpath::deleteCommand(int pos) {
     if (pos == -1) {
         //delete(*vpcCommands.rbegin()); // causes crash
         vpcCommands.pop_back();
@@ -106,7 +106,7 @@ void Toolpath::deleteCommand(int pos){
     recalculate();
 }
 
-double Toolpath::getLength(){
+double Toolpath::getLength() {
     if(vpcCommands.size()==0)
         return 0;
     double l = 0;
@@ -131,7 +131,7 @@ double Toolpath::getLength(){
     return l;
 }
 
-void Toolpath::setFromGCode(const std::string instr){
+void Toolpath::setFromGCode(const std::string instr) {
     clear();
     
     // remove comments
@@ -196,21 +196,22 @@ std::string Toolpath::toGCode(void) const {
         result += "\n";
     }
     return result;
-}    
+}
 
- // recalculates the path cache
+// recalculates the path cache
 void Toolpath::recalculate(void) {
+
     if(vpcCommands.size()==0)
         return;
+        
     // TODO recalculate the KDL stuff. At the moment, this is unused.
 
     /*
     // delete the old and create a new one
     if(pcPath) 
-        delete(pcPath);
+        delete (pcPath);
         
     pcPath = new KDL::Path_Composite();
-    
     KDL::Path *tempPath;
     KDL::Frame Last;
 
@@ -260,7 +261,6 @@ void Toolpath::recalculate(void) {
 }
 
 // reimplemented from base class
-
 unsigned int Toolpath::getMemSize (void) const {
     return toGCode().size();
 }
@@ -298,7 +298,7 @@ void Toolpath::Restore(XMLReader &reader) {
 void Toolpath::RestoreDocFile(Base::Reader &reader) {
     std::string gcode;
     std::string line;
-    while (reader >> line) {
+    while (reader >> line) { 
         gcode += line;
         gcode += " ";
     }

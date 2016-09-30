@@ -29,7 +29,6 @@
 #endif
 
 
-#include <strstream>
 #include <App/Application.h>
 #include <Base/Writer.h>
 #include <Base/Reader.h>
@@ -95,7 +94,7 @@ App::DocumentObjectExecReturn *DrawView::execute(void)
             }
         }
     }
-    return App::DocumentObject::execute();
+    return App::DocumentObject::StdReturn;                //DO::execute returns 0
 }
 
 void DrawView::onChanged(const App::Property* prop)
@@ -134,9 +133,8 @@ short DrawView::mustExecute() const
     }
     if (result) {
         return result;
-    } else {
-        return App::DocumentObject::mustExecute();
     }
+    return App::DocumentObject::mustExecute();   return App::DocumentObject::mustExecute();
 }
 
 ////you must override this in derived class
@@ -149,7 +147,7 @@ QRectF DrawView::getRect() const
 void DrawView::onDocumentRestored()
 {
     // Rebuild the view
-    execute();
+    DrawView::execute();
 }
 
 DrawPage* DrawView::findParentPage() const

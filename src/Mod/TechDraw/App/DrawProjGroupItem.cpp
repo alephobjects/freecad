@@ -26,7 +26,6 @@
 # include <sstream>
 #endif
 
-#include <strstream>
 #include <Base/Console.h>
 #include <Base/Writer.h>
 
@@ -90,7 +89,7 @@ DrawProjGroupItem::~DrawProjGroupItem()
 void DrawProjGroupItem::onDocumentRestored()
 {
     setAutoPos(false);                        //if restoring from file, use X,Y from file, not auto!
-    execute();
+    DrawProjGroupItem::execute();
 }
 
 

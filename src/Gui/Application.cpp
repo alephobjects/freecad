@@ -276,7 +276,7 @@ FreeCADGui_subgraphFromObject(PyObject * /*self*/, PyObject *args)
     try {
         Base::BaseClass* base = static_cast<Base::BaseClass*>(Base::Type::createInstanceByName(vp.c_str(), true));
         if (base && base->getTypeId().isDerivedFrom(Gui::ViewProviderDocumentObject::getClassTypeId())) {
-            std::auto_ptr<Gui::ViewProviderDocumentObject> vp(static_cast<Gui::ViewProviderDocumentObject*>(base));
+            std::unique_ptr<Gui::ViewProviderDocumentObject> vp(static_cast<Gui::ViewProviderDocumentObject*>(base));
             std::map<std::string, App::Property*> Map;
             obj->getPropertyMap(Map);
             vp->attach(obj);
@@ -323,7 +323,7 @@ struct PyMethodDef FreeCADGui_methods[] = {
      "getSoDBVersion() -> String\n\n"
      "Return a text string containing the name\n"
      "of the Coin library and version information"},
-    {NULL, NULL}  /* sentinel */
+    {NULL, NULL, 0, NULL}  /* sentinel */
 };
 
 
@@ -697,7 +697,7 @@ void Application::slotDeleteDocument(const App::Document& Doc)
         setActiveDocument(0);
 
     // For exception-safety use a smart pointer
-    auto_ptr<Document> delDoc (doc->second);
+    unique_ptr<Document> delDoc (doc->second);
     d->documents.erase(doc);
 }
 
@@ -1392,12 +1392,13 @@ void messageHandler(QtMsgType type, const char *msg)
 #endif
 #else
     // do not stress user with Qt internals but write to log file if enabled
+    Q_UNUSED(type);
     Base::Console().Log("%s\n", msg);
 #endif
 }
 
 #ifdef FC_DEBUG // redirect Coin messages to FreeCAD
-void messageHandlerCoin(const SoError * error, void * userdata)
+void messageHandlerCoin(const SoError * error, void * /*userdata*/)
 {
     if (error && error->getTypeId() == SoDebugError::getClassTypeId()) {
         const SoDebugError* dbg = static_cast<const SoDebugError*>(error);

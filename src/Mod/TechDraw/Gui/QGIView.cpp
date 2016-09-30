@@ -38,7 +38,6 @@
 #include <QStyleOptionGraphicsItem>
 #include <QTextOption>
 #include <QTransform>
-#include <strstream>
 #endif
 
 #include <App/Application.h>
@@ -180,6 +179,7 @@ void QGIView::mouseReleaseEvent(QGraphicsSceneMouseEvent * event)
 
 void QGIView::hoverEnterEvent(QGraphicsSceneHoverEvent *event)
 {
+    Q_UNUSED(event);
     // TODO don't like this but only solution at the minute (MLP)
     if (isSelected()) {
         m_colCurrent = getSelectColor();
@@ -195,6 +195,7 @@ void QGIView::hoverEnterEvent(QGraphicsSceneHoverEvent *event)
 
 void QGIView::hoverLeaveEvent(QGraphicsSceneHoverEvent *event)
 {
+    Q_UNUSED(event);
     if(isSelected()) {
         m_colCurrent = getSelectColor();
     } else {
@@ -344,7 +345,7 @@ void QGIView::drawBorder()
                               frameWidth,
                               frameHeight);
     prepareGeometryChange();
-    m_border->setRect(frameArea);
+    m_border->setRect(frameArea.adjusted(-2,-2,2,2));
     m_border->setPos(0.,0.);
 
     m_label->show();

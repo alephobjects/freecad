@@ -24,7 +24,6 @@
 #ifndef _PreComp_
 #include <cmath>
 #include <qmath.h>
-#include <strstream>
 #include <QAction>
 #include <QApplication>
 #include <QContextMenuEvent>
@@ -312,6 +311,7 @@ void QGIViewPart::drawViewPart()
                 newFace->setHatch(fHatch->HatchPattern.getValue());
             }
         }
+        newFace->setDrawEdges(false);
         newFace->setZValue(ZVALUE::FACE);
         newFace->setPrettyNormal();
     }
