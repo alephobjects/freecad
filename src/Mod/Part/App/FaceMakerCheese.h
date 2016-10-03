@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (c) 2016 WandererFan <wandererfan@gmail.com>                *
+ *   Copyright (c) 2016 Victor Titov (DeepSOIC)      <vv.titov@gmail.com>  *
  *                                                                         *
  *   This file is part of the FreeCAD CAx development system.              *
  *                                                                         *
@@ -20,21 +20,54 @@
  *                                                                         *
  ***************************************************************************/
 
-#ifndef _DrawGuiUtil_h_
-#define _DrawGuiUtil_h_
+#ifndef PART_FACEMAKER_CHEESE_H
+#define PART_FACEMAKER_CHEESE_H
 
-#include <string>
+#include "FaceMaker.h"
+#include <list>
+#include <functional>
 
-namespace TechDrawGui
+namespace Part
 {
 
-/// Convenient utility functions for TechDraw Gui Module
-class TechDrawGuiExport DrawGuiUtil {
+
+/**
+ * @brief The FaceMakerCheese class is a legacy face maker that was extracted
+ * from Part Extrude. It is used by almost all PartDesign.
+ *
+ * Strengths: makes faces with holes
+ *
+ * Weaknesses: can't make islands in holes. All faces must be on same plane.
+ */
+class PartExport FaceMakerCheese: public FaceMakerPublic
+{
+    TYPESYSTEM_HEADER();
+public:
+    virtual std::string getUserFriendlyName() const override;
+    virtual std::string getBriefExplanation() const override;
+
+public: //in Extrusion, they used to be private. but they are also used by PartDesign, so made public.
+    /**
+     * @brief The Wire_Compare class is for sorting wires by bounding box diagonal length
+     */
+    class Wire_Compare : public std::binary_function<const TopoDS_Wire&,
+            const TopoDS_Wire&, bool>
+    {
     public:
-    static TechDraw::DrawPage* findPage(Gui::Command* cmd);
-    static bool needPage(Gui::Command* cmd);
-    static bool needView(Gui::Command* cmd);
+        bool operator() (const TopoDS_Wire& w1, const TopoDS_Wire& w2);
+    };
+
+    static TopoDS_Shape makeFace(const std::vector<TopoDS_Wire>&);
+    static TopoDS_Face validateFace(const TopoDS_Face&);
+    static bool isInside(const TopoDS_Wire&, const TopoDS_Wire&);
+
+private:
+    static TopoDS_Shape makeFace(std::list<TopoDS_Wire>&); // for internal use only
+
+protected:
+    virtual void Build_Essence() override;
 };
 
-} //end namespace TechDrawGui
-#endif
+
+}//namespace Part
+#endif // PART_FACEMAKER_CHEESE_H
