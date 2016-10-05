@@ -191,8 +191,37 @@ def get_femelement_sets(femmesh, femelement_table, fem_objects):  # fem_objects 
             if obj.Name == has_remaining_femelements:
                 fem_object['FEMElements'] = sorted(remaining_femelements)
     # check if all worked out well
-    if not femelements_count_ok(femelement_table, count_femelements):
+    if not femelements_count_ok(len(femelement_table), count_femelements):
         FreeCAD.Console.PrintError('Error in get_femelement_sets -- > femelements_count_ok() failed!\n')
+
+
+def get_femelement_sets_from_group_data(femmesh, fem_objects):
+    # get femelements from femmesh groupdata for reference shapes of each obj.References
+    print("")
+    count_femelements = 0
+    sum_group_elements = []
+    # we assume the mesh group data fits with the reference shapes, no check is done in this regard !!!
+    # what happens if a reference shape was changed, but the mesh and the mesh groups were not created new !?!
+    for fem_object_i, fem_object in enumerate(fem_objects):
+        obj = fem_object['Object']
+        fem_object['ShortName'] = get_elset_short_name(obj, fem_object_i)  # unique short identifier
+        if femmesh.GroupCount:
+            for g in femmesh.Groups:
+                grp_name = femmesh.getGroupName(g)
+                if grp_name.startswith(obj.Name + '_'):
+                    if femmesh.getGroupElementType(g) == "Volume":
+                        print("Constraint: " + obj.Name + " --> " + "mesh group: " + grp_name)
+                        group_elements = femmesh.getGroupElements(g)  # == ref_shape_femelements
+                        sum_group_elements += group_elements
+                        count_femelements += len(group_elements)
+                        fem_object['FEMElements'] = group_elements
+    # check if all worked out well
+    if not femelements_count_ok(femmesh.VolumeCount, count_femelements):
+        FreeCAD.Console.PrintError('Error in get_femelement_sets_from_group_data -- > femelements_count_ok() failed!\n')
+        return False
+    else:
+        return True
+    print("")
 
 
 def get_elset_short_name(obj, i):
@@ -767,15 +796,15 @@ def get_ref_shape_node_sum_geom_table(node_geom_table):
     return node_sum_geom_table
 
 
-def femelements_count_ok(femelement_table, count_femelements):
-    if count_femelements == len(femelement_table):
-        # print('Count FEM elements for the calculated node load distribution: ', count_femelements)
-        # print('Count FEM elements of the FreeCAD FEM mesh:  ', len(femelement_table))
+def femelements_count_ok(len_femelement_table, count_femelements):
+    if count_femelements == len_femelement_table:
+        print('Count FEM elements as sum of constraints: ', count_femelements)
+        print('Count FEM elements of the FreeCAD FEM mesh:  ', len_femelement_table)
         return True
     else:
         print('ERROR: femelement_table != count_femelements')
-        print('Count FEM elements for the calculated node load distribution: ', count_femelements)
-        print('Count FEM Elements of the FreeCAD FEM Mesh:  ', len(femelement_table))
+        print('Count FEM elements as sum of constraints: ', count_femelements)
+        print('Count FEM elements of the FreeCAD FEM Mesh:  ', len_femelement_table)
         return False
 
 

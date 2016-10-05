@@ -28,6 +28,7 @@
 # include <BRepAdaptor_Curve.hxx>
 # include <gp_Lin.hxx>
 # include <gp_Circ.hxx>
+# include <TopExp_Explorer.hxx>
 #endif
 
 
@@ -166,16 +167,18 @@ App::DocumentObjectExecReturn *Revolution::execute(void)
             sourceShape.setShape(sourceShape.getShape().Moved(loc));
         }
 
-        //do it!
+        //"make solid" processing: make faces from wires.
         Standard_Boolean makeSolid = Solid.getValue() ? Standard_True : Standard_False;
+        if (makeSolid){
+            //test if we need to make faces from wires. If there are faces - we don't.
+            TopExp_Explorer xp(sourceShape.getShape(), TopAbs_FACE);
+            if (xp.More())
+                //source shape has faces. Just revolve as-is.
+                makeSolid = Standard_False;
+        }
         if (makeSolid && strlen(this->FaceMakerClass.getValue())>0){
             //new facemaking behavior: use facemaker class
             std::unique_ptr<FaceMaker> mkFace = FaceMaker::ConstructFromType(this->FaceMakerClass.getValue());
-            if (!mkFace) {
-                std::stringstream out;
-                out << "Cannot create FaceMaker from abstract type " << this->FaceMakerClass.getValue();
-                throw Base::TypeError(out.str());
-            }
 
             TopoDS_Shape myShape = sourceShape.getShape();
             if(myShape.ShapeType() == TopAbs_COMPOUND)
@@ -188,6 +191,8 @@ App::DocumentObjectExecReturn *Revolution::execute(void)
 
             makeSolid = Standard_False;//don't ask TopoShape::revolve to make solid, as we've made faces...
         }
+
+        // actual revolution!
         TopoDS_Shape revolve = sourceShape.revolve(revAx, angle, makeSolid);
 
         if (revolve.IsNull())
